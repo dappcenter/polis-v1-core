@@ -47,8 +47,8 @@ contract Plutus is Ownable {
     // 3 reward sets
     uint public constant REWARDS_LENGTH = 3;
 
-    // Index for Validators
-    uint public constant VALIDATORS_INDEX = 0;
+    // Index for Karme
+    uint public constant KARME_INDEX = 0;
     // Index for Treasury 1: Senate
     uint public constant SENATE_INDEX = 1;
     // Index for Treasury 2: Agora
@@ -82,12 +82,12 @@ contract Plutus is Ownable {
         polisPerBlock = _polisPerBlock;
         startBlock = _startBlock;
         // Initial drachma rewards
-        addReward(70, VALIDATORS_INDEX);
+        addReward(70, KARME_INDEX);
         // Senate
         addReward(20, SENATE_INDEX);
         // Agora
         addReward(10, AGORA_INDEX);
-        assert(rewardsInfo[VALIDATORS_INDEX].allocPoint == 70);
+        assert(rewardsInfo[KARME_INDEX].allocPoint == 70);
         assert(rewardsInfo[SENATE_INDEX].allocPoint == 20);
         assert(rewardsInfo[AGORA_INDEX].allocPoint == 10);
 
@@ -132,7 +132,7 @@ contract Plutus is Ownable {
     view
     returns (uint256)
     {
-        RewardsInfo storage drachmaRewards = rewardsInfo[VALIDATORS_INDEX];
+        RewardsInfo storage drachmaRewards = rewardsInfo[KARME_INDEX];
         DrachmaInfo storage user = drachmaInfo[_user];
         uint256 accPolisPerShare = drachmaRewards.accPolisPerShare;
         if (block.number > drachmaRewards.lastRewardBlock && totalDrachmasAmount != 0) {
@@ -157,7 +157,7 @@ contract Plutus is Ownable {
             return;
         }
         uint256 supply;
-        if (_rid == VALIDATORS_INDEX) {
+        if (_rid == KARME_INDEX) {
             supply = totalDrachmasAmount;
         }
         else {
@@ -180,13 +180,13 @@ contract Plutus is Ownable {
     }
 
     // Deposit POLIS to add Validators
-    function addDrachma(uint256 _amount) public {
+    function addDrachmas(uint256 _amount) public {
         require(msg.sender != senate && msg.sender != agora);
         // Drachma must be divisible by 100
         require(_amount.mod(DRACHMA_AMOUNT) == 0, "addDrachma: incorrect amount");
-        RewardsInfo storage rewards = rewardsInfo[VALIDATORS_INDEX];
+        RewardsInfo storage rewards = rewardsInfo[KARME_INDEX];
         DrachmaInfo storage user = drachmaInfo[msg.sender];
-        updateReward(VALIDATORS_INDEX);
+        updateReward(KARME_INDEX);
         if (user.amount > 0) {
             uint256 pending =
             user.amount.mul(rewards.accPolisPerShare).div(1e12).sub(
@@ -208,10 +208,10 @@ contract Plutus is Ownable {
     // Withdraw Drachmas
     function exitDrachmas(uint256 _amount) public {
         require(_amount.mod(DRACHMA_AMOUNT) == 0, "exitDrachmas: incorrect amount");
-        RewardsInfo storage rewards = rewardsInfo[VALIDATORS_INDEX];
+        RewardsInfo storage rewards = rewardsInfo[KARME_INDEX];
         DrachmaInfo storage user = drachmaInfo[msg.sender];
         require(user.amount >= _amount, "exitDrachmas: incorrect amount");
-        updateReward(VALIDATORS_INDEX);
+        updateReward(KARME_INDEX);
         uint256 pending =
         user.amount.mul(rewards.accPolisPerShare).div(1e12).sub(
             user.rewardDebt
@@ -256,7 +256,7 @@ contract Plutus is Ownable {
 
     // Safe polis transfer function, just in case if rounding error causes the reward to not have enough POLIS.
     function safePolisTransfer(address _to, uint256 _amount) internal {
-        uint256 polisBal = polis.balanceOf(address(this)) - totalDrachmasAmount;
+        uint256 polisBal = polis.balanceOf(address(this)).sub(totalDrachmasAmount);
         if (_amount > polisBal) {
             IERC20(polis).safeTransfer(_to, polisBal);
         } else {
@@ -271,7 +271,7 @@ contract Plutus is Ownable {
     }
 
     // Update agora address
-    function setAgore(address _addr) external onlyOwner{
+    function setAgora(address _addr) external onlyOwner{
         require(_addr != address(0), "agora: invalid");
         agora = _addr;
     }
