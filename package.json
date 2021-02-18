@@ -9,10 +9,10 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@openzeppelin/contracts": "^3.4.0",
-    "@openzeppelin/test-helpers": "^0.5.10",
-    "ganache-cli": "^6.12.2",
-    "truffle": "^5.1.65",
-    "truffle-hdwallet-provider": "^1.0.17"
+    "@openzeppelin/contracts": "3.4.0",
+    "@openzeppelin/test-helpers": "0.5.10",
+    "ganache-cli": "6.12.2",
+    "truffle": "5.1.66",
+    "truffle-hdwallet-provider": "1.0.17"
   }
 }
