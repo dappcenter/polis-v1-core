@@ -1,18 +1,20 @@
 {
-  "name": "masterminter",
+  "name": "polis-v1-core",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "description": "Polis token main distribution and supply management contracts",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "./run_tests.sh"
   },
-  "author": "",
-  "license": "ISC",
+  "license": "MIT",
   "dependencies": {
     "@openzeppelin/contracts": "3.4.0",
     "@openzeppelin/test-helpers": "0.5.10",
     "ganache-cli": "6.12.2",
-    "truffle": "5.1.66",
     "truffle-hdwallet-provider": "1.0.17"
+  },
+  "devDependencies": {
+    "coveralls": "3.1.0",
+    "solidity-coverage": "0.7.15",
+    "truffle": "5.1.66"
   }
 }
