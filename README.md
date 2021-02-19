@@ -5,21 +5,14 @@ This repository contains the main Polis token contract with the distribution rel
 Polis uses four main contracts to distribute the token:
 
 1. [Plutus](#plutus)
-2. [Karme](#karme)
-3. [Agora](#agora)
-4. [Senate](#senate)
+2. [Agora](#agora)
+3. [Senate](#senate)
 
 ## Plutus
 
 > Plutus is the Greek god of wealth
 
 The plutus contract is in charge of distributing the supply and manage reductions among Carme, Agora and Senate.
-
-## Karme
-
-> Karme is the Cretan demi-goddess of the harvest.
-
-The Karme contract is in charge of distributing the Polis among the farms.
 
 ## Agora
 
