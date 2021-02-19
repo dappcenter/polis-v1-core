@@ -48,7 +48,7 @@ contract Plutus is Ownable {
     uint public constant REWARDS_LENGTH = 3;
 
     // Index for Drachma Rewards
-    uint public constant DRACHMA_REWARDS = 0;
+    uint public constant DRACHMA_REWARDS_INDEX = 0;
     // Index for Treasury 1: Senate
     uint public constant SENATE_INDEX = 1;
     // Index for Treasury 2: Agora
@@ -82,12 +82,12 @@ contract Plutus is Ownable {
         polisPerBlock = _polisPerBlock;
         startBlock = _startBlock;
         // Initial drachma rewards
-        addReward(70, DRACHMA_REWARDS);
+        addReward(70, DRACHMA_REWARDS_INDEX);
         // Senate
         addReward(20, SENATE_INDEX);
         // Agora
         addReward(10, AGORA_INDEX);
-        assert(rewardsInfo[DRACHMA_REWARDS].allocPoint == 70);
+        assert(rewardsInfo[DRACHMA_REWARDS_INDEX].allocPoint == 70);
         assert(rewardsInfo[SENATE_INDEX].allocPoint == 20);
         assert(rewardsInfo[AGORA_INDEX].allocPoint == 10);
 
@@ -132,7 +132,7 @@ contract Plutus is Ownable {
     view
     returns (uint256)
     {
-        RewardsInfo storage drachmaRewards = rewardsInfo[DRACHMA_REWARDS];
+        RewardsInfo storage drachmaRewards = rewardsInfo[DRACHMA_REWARDS_INDEX];
         DrachmaInfo storage user = drachmaInfo[_user];
         uint256 accPolisPerShare = drachmaRewards.accPolisPerShare;
         if (block.number > drachmaRewards.lastRewardBlock && totalDrachmasAmount != 0) {
@@ -157,7 +157,7 @@ contract Plutus is Ownable {
             return;
         }
         uint256 supply;
-        if (_rid == DRACHMA_REWARDS) {
+        if (_rid == DRACHMA_REWARDS_INDEX) {
             supply = totalDrachmasAmount;
         }
         else {
@@ -184,9 +184,9 @@ contract Plutus is Ownable {
         require(msg.sender != senate && msg.sender != agora);
         // Drachma must be divisible by 100
         require(_amount.mod(DRACHMA_AMOUNT) == 0, "addDrachma: incorrect amount");
-        RewardsInfo storage rewards = rewardsInfo[DRACHMA_REWARDS];
+        RewardsInfo storage rewards = rewardsInfo[DRACHMA_REWARDS_INDEX];
         DrachmaInfo storage user = drachmaInfo[msg.sender];
-        updateReward(DRACHMA_REWARDS);
+        updateReward(DRACHMA_REWARDS_INDEX);
         if (user.amount > 0) {
             uint256 pending =
             user.amount.mul(rewards.accPolisPerShare).div(1e12).sub(
@@ -208,10 +208,10 @@ contract Plutus is Ownable {
     // Withdraw Drachmas
     function exitDrachmas(uint256 _amount) public {
         require(_amount.mod(DRACHMA_AMOUNT) == 0, "exitDrachmas: incorrect amount");
-        RewardsInfo storage rewards = rewardsInfo[DRACHMA_REWARDS];
+        RewardsInfo storage rewards = rewardsInfo[DRACHMA_REWARDS_INDEX];
         DrachmaInfo storage user = drachmaInfo[msg.sender];
         require(user.amount >= _amount, "exitDrachmas: incorrect amount");
-        updateReward(DRACHMA_REWARDS);
+        updateReward(DRACHMA_REWARDS_INDEX);
         uint256 pending =
         user.amount.mul(rewards.accPolisPerShare).div(1e12).sub(
             user.rewardDebt
