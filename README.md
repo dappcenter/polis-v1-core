@@ -2,7 +2,7 @@
 
 This repository contains the main Polis token contract with the distribution related contracts.
 
-Polis uses four main contracts to distribute the token:
+Polis uses three main contracts to distribute the token:
 
 1. [Plutus](#plutus)
 2. [Agora](#agora)
