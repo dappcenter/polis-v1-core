@@ -48,7 +48,7 @@ module.exports = {
 
   },
   plugins: [
-    'truffle-plugin-verify'
+    "solidity-coverage"
   ],
   api_keys: {
     bscscan: bscscanKey,
