@@ -12,7 +12,7 @@ Polis uses three main contracts to distribute the token:
 
 > Plutus is the Greek god of wealth
 
-The plutus contract is in charge of distributing the supply and manage reductions among Carme, Agora and Senate.
+The plutus contract is in charge of distributing the supply, rewards and manage reductions among Drachma holders, Agora and Senate.
 
 ## Agora
 
