@@ -498,6 +498,75 @@ contract('Senate', ([tech, community, business, marketing, adoption, newAdoption
         // Submit adoption candidate
         await this.senate.submitCandidate(4, "proposal_adoption", {from: adoption})
 
+        // Get some coins for the "communityMembers"
+        this.polis.mint(communityMembers, "500000000000000000000", {from: owner})
+
+        // Approve spending of the communityMember tokens by the contract
+        await this.polis.approve(this.senate.address, "10000000000000000000000000000000", {from: communityMembers})
+
+        // Try to finalize without any vote for tech manager
+        expectRevert(this.senate.finalizeVotingPeriod(), "Senate: can't finalize voting because there is only 1 tech candidate with 0 votes")
+
+        // Vote 100 coins for the tech manager
+        await this.senate.voteCandidate(tech, "100000000000000000000", {from: communityMembers})
+
+        // Try to finalize without any vote for community manager
+        expectRevert(this.senate.finalizeVotingPeriod(), "Senate: can't finalize voting because there is only 1 community candidate with 0 votes")
+        
+        // Vote 100 coins for the community manager
+        await this.senate.voteCandidate(community, "100000000000000000000", {from: communityMembers})
+ 
+        // Try to finalize without any vote for business manager
+        expectRevert(this.senate.finalizeVotingPeriod(), "Senate: can't finalize voting because there is only 1 business candidate with 0 votes")
+ 
+        // Vote 100 coins for the business manager
+        await this.senate.voteCandidate(business, "100000000000000000000", {from: communityMembers})
+ 
+        // Try to finalize without any vote for marketing manager
+        expectRevert(this.senate.finalizeVotingPeriod(), "Senate: can't finalize voting because there is only 1 marketing candidate with 0 votes")
+ 
+        // Vote 100 coins for the marketing manager
+        await this.senate.voteCandidate(marketing, "100000000000000000000", {from: communityMembers})
+
+        // Try to finalize without any vote for adoption manager
+        expectRevert(this.senate.finalizeVotingPeriod(), "Senate: can't finalize voting because there is only 1 adoption candidate with 0 votes")
+ 
+        // Vote 100 coins for the adoption manager
+        await this.senate.voteCandidate(adoption, "100000000000000000000", {from: communityMembers})
+
+        await this.senate.finalizeVotingPeriod()
+
+        // Make sure candidates are now owners
+        owners = await this.senate.getManagersOwner();
+
+        assert.equal(owners[0], tech);
+        assert.equal(owners[1], community);
+        assert.equal(owners[2], business);
+        assert.equal(owners[3], marketing);
+        assert.equal(owners[4], adoption);
+
+        // Initialize the contract
+        await this.senate.initialize({from: tech})
+        await this.senate.initialize({from: community})
+        await this.senate.initialize({from: business})
+        await this.senate.initialize({from: marketing})
+        await this.senate.initialize({from: adoption})
+
+        initialized = await this.senate.initialized();
+        assert.equal(initialized, true)
+
+        // Voting should be false
+        voting = await this.senate.voting();
+        assert.equal(voting, false)
+
+        let communityBalance = await this.polis.balanceOf(communityMembers)
+        assert.equal(communityBalance, "0")
+
+        // Withdraw voted coins
+        await this.senate.withdrawVotedCoins({from: communityMembers})
+        communityBalance = await this.polis.balanceOf(communityMembers)
+        assert.equal(communityBalance, "500000000000000000000")
+
     });
 
 });
