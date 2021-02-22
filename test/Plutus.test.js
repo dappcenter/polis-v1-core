@@ -2,7 +2,7 @@ const { expectRevert, time } = require('@openzeppelin/test-helpers');
 const Polis = artifacts.require('token/Polis.sol');
 const Plutus = artifacts.require('plutus/Plutus.sol');
 
-contract('Plutus', ([alice, bob, carol, dev, minter, senate, agora]) => {
+contract('Plutus', ([alice, bob, carol, dev, senate, agora]) => {
     beforeEach(async () => {
         this.polis = await Polis.new({ from: dev });
     });

@@ -78,6 +78,7 @@ contract Plutus is Ownable {
     event EmergencyWithdraw(address indexed user, uint256 amount);
 
     constructor(Polis _polis, uint256 _polisPerBlock, uint256 _startBlock)  {
+        require(_polisPerBlock > 0);
         polis = _polis;
         polisPerBlock = _polisPerBlock;
         startBlock = _startBlock;
@@ -152,6 +153,7 @@ contract Plutus is Ownable {
 
     // Update reward variables to be up-to-date.
     function updateReward(uint256 _rid) public {
+        require(polis.owner() == address(this), "plutus doesn't own polis");
         RewardsInfo storage reward = rewardsInfo[_rid];
         if (block.number <= reward.lastRewardBlock) {
             return;
@@ -277,7 +279,12 @@ contract Plutus is Ownable {
     }
 
     // Claim ownership of POLIS
-    function claimToken() public onlyOwner {
+    function claimToken() public {
         polis.claimOwnership();
+    }
+
+    // Propose ownership of POLIS
+    function proposePolisOwner(address _owner) public onlyOwner {
+        polis.proposeOwner(_owner);
     }
 }
