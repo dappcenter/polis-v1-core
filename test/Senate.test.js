@@ -2,7 +2,7 @@ const { expectRevert, time } = require('@openzeppelin/test-helpers');
 const Polis = artifacts.require('token/Polis.sol');
 const Senate = artifacts.require('senate/Senate.sol');
 
-contract('Senate', ([tech, community, business, marketing, adoption, newAdoption, owner]) => {
+contract('Senate', ([tech, community, business, marketing, adoption, newAdoption, communityMembers, owner]) => {
     beforeEach(async () => {
         this.polis = await Polis.new({ from: owner });
     });
@@ -286,6 +286,215 @@ contract('Senate', ([tech, community, business, marketing, adoption, newAdoption
 
         initialized = await this.senate.initialized();
         assert.equal(initialized, true)
+    });
+
+    it('should replace the adoption manager by a partial Senate approval and community vote', async () => {
+        this.senate = await Senate.new(tech, community, business, marketing, adoption, this.polis.address, { from: owner });
+
+        // Check initial manager
+        let owners = await this.senate.getManagersOwner();
+
+        assert.equal(owners[0], tech);
+        assert.equal(owners[1], community);
+        assert.equal(owners[2], business);
+        assert.equal(owners[3], marketing);
+        assert.equal(owners[4], adoption);
+        
+        // Tech manager proposes the replacement of the adoption manager
+        await this.senate.proposeManagementReplace(await this.senate.ADOPTION_INDEX(), newAdoption)
+
+        // Tech manager approves the replacement of the adoption manager 
+        await this.senate.voteManagementReplacement(1, {from: tech})
+
+        // Tech manager tires to override the manager to be replaced and fail
+        expectRevert(this.senate.proposeManagementReplace(await this.senate.TECH_INDEX(), newAdoption), "Senate: cannot propose a manager replacement during the voting of a managemer replacement")
+
+        // Other managers approve the replacement
+        await this.senate.voteManagementReplacement(1, {from: community})
+        await this.senate.voteManagementReplacement(1, {from: business})
+        await this.senate.voteManagementReplacement(0, {from: marketing})
+        await this.senate.voteManagementReplacement(0, {from: adoption})
+
+        // Make sure owners are not changed
+        owners = await this.senate.getManagersOwner();
+
+        assert.equal(owners[0], tech);
+        assert.equal(owners[1], community);
+        assert.equal(owners[2], business);
+        assert.equal(owners[3], marketing);
+        assert.equal(owners[4], adoption);
+
+        // Right now the replacement is partially done, contract has a grace period of 7 days for community vote
+
+        // Try to execute the replacement before the time passes
+        expectRevert(this.senate.executeReplacementVote(), "Senate: there is still time to vote before the replacement")
+
+        // Get some coins for the "communityMembers"
+        this.polis.mint(communityMembers, "1000000000000000000000", {from: owner})
+
+        // Approve spending of the communityMember tokens by the contract
+        await this.polis.approve(this.senate.address, "10000000000000000000000000000000", {from: communityMembers})
+
+        // Check balances
+        let communityBalance = await this.polis.balanceOf(communityMembers)
+        assert.equal(communityBalance, "1000000000000000000000")
+
+        // Lock the coins
+        await this.senate.submitApprovalForVoteReplacement("1000000000000000000000", {from: communityMembers})
+     
+        // Check balances
+        communityBalance = await this.polis.balanceOf(communityMembers)
+        assert.equal(communityBalance, "0")
+
+        // Check locked coins inside the contract
+        let locked = await this.senate.replacementVotesTotalLocked()
+        assert.equal(locked, "1000000000000000000000")
+
+        // Unlock coins to make sure locking mechanisms works
+        await this.senate.withdrawTokensForReplacementVote({from: communityMembers})
+
+        // Check communityMembers balances
+        communityBalance = await this.polis.balanceOf(communityMembers)
+        assert.equal(communityBalance, "1000000000000000000000")
+
+        // Make sure locked coins changes when community withdraws the coins
+        locked = await this.senate.replacementVotesTotalLocked()
+        assert.equal(locked, "0")
+
+        // Lock coins to submit the vote
+        await this.senate.submitApprovalForVoteReplacement("1000000000000000000000", {from: communityMembers})
+
+        // Move time to the vote ending time
+        let voteIntializationTime = await this.senate.communityReplacementVoteInitialTime()
+        let voteEndingTime = parseInt(voteIntializationTime) + (7 * 24 * 60 * 60) + 1;
+
+        await time.increaseTo(voteEndingTime)
+
+        // Submit replacement
+        await this.senate.executeReplacementVote()
+
+        // Make sure managers are properly modified
+        owners = await this.senate.getManagersOwner();
+
+        assert.equal(owners[0], tech);
+        assert.equal(owners[1], community);
+        assert.equal(owners[2], business);
+        assert.equal(owners[3], marketing);
+        assert.equal(owners[4], newAdoption);
+
+        // Contract should be de-initialized and wait for manager to reinitialize it
+        let initialized = await this.senate.initialized();
+        assert.equal(initialized, false)
+
+        // Managers initialize the contract
+        await this.senate.initialize({from: tech})
+        await this.senate.initialize({from: community})
+        await this.senate.initialize({from: business})
+        await this.senate.initialize({from: marketing})
+        await this.senate.initialize({from: newAdoption})
+
+        initialized = await this.senate.initialized();
+        assert.equal(initialized, true)
+    });
+
+    it('should start a voting period with single candidates', async () => {
+        this.senate = await Senate.new(tech, community, business, marketing, adoption, this.polis.address, { from: owner });
+
+        // Check initial manager
+        let owners = await this.senate.getManagersOwner();
+
+        assert.equal(owners[0], tech);
+        assert.equal(owners[1], community);
+        assert.equal(owners[2], business);
+        assert.equal(owners[3], marketing);
+        assert.equal(owners[4], adoption);
+
+        let initialized = await this.senate.initialized();
+        assert.equal(initialized, false)
+
+        // Managers initialize the contract
+        await this.senate.initialize({from: tech})
+        await this.senate.initialize({from: community})
+        await this.senate.initialize({from: business})
+        await this.senate.initialize({from: marketing})
+        await this.senate.initialize({from: adoption})
+
+        initialized = await this.senate.initialized();
+        assert.equal(initialized, true)
+
+        let voting = await this.senate.voting();
+        assert.equal(voting, false)
+
+        // Try to initialize a voting period outside of time
+        expectRevert(this.senate.initializeVotingCycle(), "Senate: cannot initialize a voting period before the cycle ends")
+    
+        // Try to submit a candidate outside of voting period
+        expectRevert(this.senate.submitCandidate(0, "proposal_text", {from: tech}), "Senate: the Senate is not on voting phase")
+
+        // Advance time to next voting period
+        let nextVotingPeriod = await this.senate.nextVotingPeriod();
+        let nextVotingPeriodTime = parseInt(nextVotingPeriod) + 1;
+        await time.increaseTo(nextVotingPeriodTime)
+
+        // Initialize new voting period
+        await this.senate.initializeVotingCycle()
+
+        // Voting should be enabled
+        voting = await this.senate.voting();
+        assert.equal(voting, true)
+
+        // Initialization should be disabled
+        initialized = await this.senate.initialized();
+        assert.equal(initialized, false)
+
+        // Managers should be removed
+        owners = await this.senate.getManagersOwner();
+
+        assert.equal(owners[0], "0x0000000000000000000000000000000000000000");
+        assert.equal(owners[1], "0x0000000000000000000000000000000000000000");
+        assert.equal(owners[2], "0x0000000000000000000000000000000000000000");
+        assert.equal(owners[3], "0x0000000000000000000000000000000000000000");
+        assert.equal(owners[4], "0x0000000000000000000000000000000000000000");
+
+        // Try to finalize the voting without the grace period
+        expectRevert(this.senate.finalizeVotingPeriod(), "Senate: unable to finish voting period, there is still time to vote")
+
+        // Increase time to period ending
+        await time.increase((14 * 24 * 60 * 60) + 1)
+
+        // Try to finalize the voting without a tech candidate
+        expectRevert(this.senate.finalizeVotingPeriod(), "Senate: Unable to close vote, there is no tech candidate")
+
+        // Submit tech candidate
+        await this.senate.submitCandidate(0, "proposal_tech", {from: tech})
+
+        // Try to submit the same candidate to another position
+        expectRevert(this.senate.submitCandidate(1, "proposal_tech", {from: tech}), "Senate: unable to upload same candidate twice")
+
+        // Try to finalize the voting without a community candidate
+        expectRevert(this.senate.finalizeVotingPeriod(), "Senate: Unable to close vote, there is no community candidate")
+        
+        // Submit community candidate
+        await this.senate.submitCandidate(1, "proposal_community", {from: community})
+
+        // Try to finalize the voting without a business candidate
+        expectRevert(this.senate.finalizeVotingPeriod(), "Senate: Unable to close vote, there is no business candidate")
+
+        // Submit business candidate
+        await this.senate.submitCandidate(2, "proposal_business", {from: business})
+
+        // Try to finalize the voting without a marketing candidate
+        expectRevert(this.senate.finalizeVotingPeriod(), "Senate: Unable to close vote, there is no marketing candidate")
+
+        // Submit marketing candidate
+        await this.senate.submitCandidate(3, "proposal_marketing", {from: marketing})
+
+        // Try to finalize the voting without an adoption candidate
+        expectRevert(this.senate.finalizeVotingPeriod(), "Senate: Unable to close vote, there is no adoption candidate")
+
+        // Submit adoption candidate
+        await this.senate.submitCandidate(4, "proposal_adoption", {from: adoption})
+
     });
 
 });

@@ -65,7 +65,7 @@ contract Senate  {
 
     // ** Public functions ** //
 
-    uint256 communitySenateBanTotalLocked;
+    uint256 public communitySenateBanTotalLocked;
     mapping (address => uint256) communitySenateBanLocked;
 
     function initializeFullSenateBan() external {
@@ -104,7 +104,7 @@ contract Senate  {
     }
 
     function initializeVotingCycle() external {
-        require(nextVotingPeriod >= block.timestamp, "Senate: cannot initialize a voting period before the cycle ends");
+        require(block.timestamp > nextVotingPeriod, "Senate: cannot initialize a voting period before the cycle ends");
         // Once the voting cycle is initialized all managers are emptied and the contract is de-initialized;
         tech.owner = address(0);
         community.owner = address(0);
@@ -164,11 +164,11 @@ contract Senate  {
     }
 
     mapping (address => uint256) votesLockedTokens;
-    uint256 totalVotesLockedTokens;
+    uint256 public totalVotesLockedTokens;
     mapping (address => uint256) candidateVotes;
 
     function finalizeVotingPeriod() external {
-        require(block.timestamp > nextVotingPeriod.add(votingPeriodDuration), "Senate: unable to finish vorting period, there is still time to vote");
+        require(block.timestamp >= nextVotingPeriod.add(votingPeriodDuration), "Senate: unable to finish voting period, there is still time to vote");
         // Make sure all 5 positions are proposed.
         require(techCandidatesArr.length > 0, "Senate: Unable to close vote, there is no tech candidate");
         require(communityCandidatesArr.length > 0, "Senate: Unable to close vote, there is no community candidate");
@@ -262,6 +262,8 @@ contract Senate  {
         delete businessCandidatesArr;
         delete marketingCandidatesArr;
         delete adoptionCandidatesArr;
+
+        nextVotingPeriod = nextVotingPeriod.add(365 days);
     }
 
     function withdrawVotedCoins() external {
@@ -316,7 +318,7 @@ contract Senate  {
         return false;
     }
     
-    function getManager() internal onlyManager view returns (Manager memory) {
+    function getManager() internal view returns (Manager memory) {
         address sender = msg.sender;
         if (sender == tech.owner) {
             return tech;
@@ -422,12 +424,13 @@ contract Senate  {
     ManagementReplacement proposed_manager_replacement;
 
     mapping (address => uint256) replacementVotesTokensLocked;
-    uint256 replacementVotesTotalLocked;
-    uint256 communityReplacementVoteInitialTime;
+    uint256 public replacementVotesTotalLocked;
+    uint256 public communityReplacementVoteInitialTime;
     uint256 communityReplacementVotePeriod = 7 days;
     
     function executeReplacementVote() external {
         require(block.timestamp > communityReplacementVoteInitialTime.add(communityReplacementVotePeriod), "Senate: there is still time to vote before the replacement");
+        require(replacementVotesTotalLocked > 0, "Senate: no one has voted for manager replacement");
         uint256 supply = token.totalSupply();
         uint256 minimum = supply.mul(10).div(100);
 
@@ -443,6 +446,8 @@ contract Senate  {
             } else if (proposed_manager_replacement.position == ADOPTION_INDEX) {
                 adoption.owner = proposed_manager_replacement.owner;
             }
+            
+            initialized = false;
         } 
 
         communityReplacementVoteInitialTime = 0;
@@ -516,7 +521,6 @@ contract Senate  {
                 // If only 3 out of 5 senate members approve it, it should be submited to the community
                 // Community has 1 week to vote with at least 10% of the total supply to confirm.
                 communityReplacementVoteInitialTime = block.timestamp;
-
 
             } else {
 
