@@ -460,8 +460,11 @@ contract('Senate', ([tech, community, business, marketing, adoption, newAdoption
         expectRevert(this.senate.finalizeVotingPeriod(), "Senate: unable to finish voting period, there is still time to vote")
 
         // Increase time to period ending
-        await time.increase((14 * 24 * 60 * 60) + 1)
+        let finalVotingPeriod = await this.senate.votingPeriodEnd();
+        let finalVotingPeriodTime = parseInt(finalVotingPeriod) + 1;
 
+        await time.increaseTo(finalVotingPeriodTime)
+        
         // Try to finalize the voting without a tech candidate
         expectRevert(this.senate.finalizeVotingPeriod(), "Senate: Unable to close vote, there is no tech candidate")
 

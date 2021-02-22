@@ -37,7 +37,7 @@ contract Senate  {
     bool public voting;
     bool public initialized;
     uint256 public nextVotingPeriod;
-    uint256 public votingPeriodDuration = 14 days;
+    uint256 public votingPeriodEnd;
     
     constructor(address _tech, address _community, address _business, address _marketing, address _adoption, address _token) {
         token = IERC20(_token);
@@ -79,8 +79,11 @@ contract Senate  {
         // Start a voting phase
         voting = true;
 
-        // Reinitialize the voting periods.
+        // Reinitialize the voting period.
         nextVotingPeriod = block.timestamp;
+
+        // Add 14 days for voting period;
+        votingPeriodEnd = block.timestamp.add(14 days);
 
         tech.owner = address(0);
         community.owner = address(0);
@@ -114,6 +117,8 @@ contract Senate  {
 
         initialized = false;
         voting = true;
+
+        votingPeriodEnd = block.timestamp.add(14 days);
     }
 
     struct Candidate {
@@ -168,7 +173,8 @@ contract Senate  {
     mapping (address => uint256) candidateVotes;
 
     function finalizeVotingPeriod() external {
-        require(block.timestamp >= nextVotingPeriod.add(votingPeriodDuration), "Senate: unable to finish voting period, there is still time to vote");
+        require(block.timestamp >= votingPeriodEnd, "Senate: unable to finish voting period, there is still time to vote");
+        
         // Make sure all 5 positions are proposed.
         require(techCandidatesArr.length > 0, "Senate: Unable to close vote, there is no tech candidate");
         require(communityCandidatesArr.length > 0, "Senate: Unable to close vote, there is no community candidate");
