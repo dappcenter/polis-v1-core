@@ -18,9 +18,9 @@ contract('Governor', ([alice, senate, agora, proposer, voter]) => {
         await this.polis.proposeOwner(this.plutus.address, { from: alice });
         await this.plutus.claimToken({ from: alice });
         await this.polis.approve(this.plutus.address, web3.utils.toWei('1000'), { from: alice });
-        await this.plutus.addDrachmas(web3.utils.toWei('100'), { from: alice });
+        await this.plutus.depositToken('0', web3.utils.toWei('100'), { from: alice });
         // Perform another deposit to make sure some POLIS are minted in that 1 block.
-        await this.plutus.addDrachmas(web3.utils.toWei('0'), { from: alice });
+        await this.plutus.depositToken('0', web3.utils.toWei('0'), { from: alice });
         assert.equal((await this.polis.totalSupply()).toString(), web3.utils.toWei('1070'));
         assert.equal((await this.polis.balanceOf(alice)).toString(), web3.utils.toWei('970'));
 
@@ -76,7 +76,7 @@ contract('Governor', ([alice, senate, agora, proposer, voter]) => {
 
         await this.gov.castVote('1', true, { from: voter });
         await expectRevert(this.gov.queue('1'), "GovernorAlpha::queue: proposal can only be queued if it is succeeded");
-        console.log("Advancing 17280 blocks. Will take a while...");
+        console.log("Advancing 100 blocks...");
         // For this test to work, (temporally) modify Governance contract for a voting period of 100 blocks. This to make the test run faster.
         //await time.advanceBlockTo(17280);
         for (let i = 0; i < 100; ++i) {

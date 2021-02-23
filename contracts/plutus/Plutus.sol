@@ -32,7 +32,7 @@ contract Plutus is Ownable {
 
     // Info of each reward set.
     struct RewardsInfo {
-        IERC20 lpToken;             // Address of LP token contract.
+        IERC20 token;             // Address of LP token contract.
         uint256 allocPoint;         // How many allocation points assigned to this reward.
         uint256 lastRewardBlock;    // Last block number that POLIS distribution occurs.
         uint256 accPolisPerShare;   // Accumulated POLIS per share, times 1e12. See below.
@@ -46,15 +46,15 @@ contract Plutus is Ownable {
     uint256 public nextHalving;
 
     // Treasuries
-    uint public TREASURY_LENGTH;
+    uint public constant TREASURY_LENGTH = 2;
     // Index for Treasury 1: Senate
     uint public constant SENATE_INDEX = 0;
     // Index for Treasury 2: Agora
     uint public constant AGORA_INDEX = 1;
     // Info of each treasury
-    RewardsInfo[] public treasuryInfo;
+    RewardsInfo[TREASURY_LENGTH] public treasuryInfo;
     // Helper vars for treasury
-    uint256[] private treasuryDebts;
+    uint256[TREASURY_LENGTH] private treasuryDebts;
     // Senate address
     address public senate;
     // Agora address
@@ -79,25 +79,36 @@ contract Plutus is Ownable {
     event Withdraw(address indexed user, uint256 indexed rid, uint256 amount);
     event ClaimTreasury(address treasury, uint256 amount);
     event EmergencyWithdraw(address indexed user, uint256 indexed rid, uint256 amount);
+    // test
+    event Flag(uint256 ind);
+    event LastRew(uint256 alloc, uint256 rw);
 
     constructor(Polis _polis, uint256 _polisPerBlock, uint256 _startBlock)  {
         require(_polisPerBlock > 0);
         polis = _polis;
         polisPerBlock = _polisPerBlock;
         startBlock = _startBlock;
-
         initialize();
         nextHalving = block.timestamp.add(365 days);
     }
 
     // Initialize the drachma and treasury data
     function initialize() internal {
-        // Initial drachma rewards
-        addReward(70, IERC20(polis));
+        uint256 lastRewardBlock = block.number > startBlock ? block.number : startBlock;
         // Senate
-        addTreasury(20);
+        addTreasury(SENATE_INDEX, 20, lastRewardBlock);
         // Agora
-        addTreasury(10);
+        addTreasury(AGORA_INDEX, 10, lastRewardBlock);
+        // Initial drachma rewards. This one guarantees that polis staking rewards match DRACHMA_INDEX
+        totalAllocPoint = totalAllocPoint.add(70);
+        rewardsInfo.push(
+            RewardsInfo({
+            token: IERC20(polis),
+            allocPoint: 70,
+            lastRewardBlock: lastRewardBlock,
+            accPolisPerShare: 0
+        }));
+        assert(totalAllocPoint == 100);
     }
 
     function halving() external {
@@ -108,42 +119,32 @@ contract Plutus is Ownable {
     }
 
     // Add a new reward.
-    function addReward(uint256 _allocPoint, IERC20 _lpToken) public onlyOwner {
-        checkRewardDuplicate(_lpToken);
+    function addReward(uint256 _allocPoint, IERC20 _token) public onlyOwner {
+        checkRewardDuplicate(_token);
         massUpdateRewards();
         uint256 lastRewardBlock = block.number > startBlock ? block.number : startBlock;
         totalAllocPoint = totalAllocPoint.add(_allocPoint);
         rewardsInfo.push(
             RewardsInfo({
-                lpToken: _lpToken,
+                token: _token,
                 allocPoint: _allocPoint,
                 lastRewardBlock: lastRewardBlock,
                 accPolisPerShare: 0
         }));
     }
 
-    // Add a new treasury. Setup in constructor
-    function addTreasury(uint256 _allocPoint) public onlyOwner {
-        massUpdateRewards();
-        uint256 lastRewardBlock = block.number > startBlock ? block.number : startBlock;
+    // Add a new treasury. Setup in initialization
+    function addTreasury(uint256 _tid, uint256 _allocPoint, uint256 _lastRW) internal {
+        treasuryInfo[_tid].token = IERC20(polis);
+        treasuryInfo[_tid].allocPoint = _allocPoint;
+        treasuryInfo[_tid].lastRewardBlock = _lastRW;
         totalAllocPoint = totalAllocPoint.add(_allocPoint);
-        treasuryInfo.push(
-            RewardsInfo({
-                lpToken: IERC20(polis),
-                allocPoint: _allocPoint,
-                lastRewardBlock: lastRewardBlock,
-                accPolisPerShare: 0
-            }));
-        TREASURY_LENGTH += 1;
-        treasuryDebts.push(0);
+        emit Flag(_allocPoint);
+
     }
 
     // Update the given rewards or treasury POLIS allocation point.
-    function setPercentage(
-        uint256 _id,
-        uint256 _allocPoint,
-        bool isTreasury
-    ) public onlyOwner {
+    function setPercentage(uint256 _id, uint256 _allocPoint, bool isTreasury) public onlyOwner {
         massUpdateRewards();
         if(isTreasury) {
             totalAllocPoint = totalAllocPoint.sub(treasuryInfo[_id].allocPoint).add(
@@ -173,7 +174,7 @@ contract Plutus is Ownable {
             lpSupply = totalDrachmasAmount;
         }
         else {
-            lpSupply = reward.lpToken.balanceOf(address(this));
+            lpSupply = reward.token.balanceOf(address(this));
         }
 
         if (block.number > reward.lastRewardBlock && lpSupply != 0) {
@@ -196,12 +197,13 @@ contract Plutus is Ownable {
 
     // Update reward variables to be up-to-date.
     function updateReward(uint256 _rid, bool isTreasury) public {
-        // require(polis.owner() == address(this), "plutus doesn't own polis");
         RewardsInfo storage reward;
         uint256 supply;
         if(isTreasury) {
             reward = treasuryInfo[_rid];
             supply = 1;
+            // test
+            emit LastRew(reward.allocPoint, reward.lastRewardBlock);
         }
         else {
             reward = rewardsInfo[_rid];
@@ -209,7 +211,7 @@ contract Plutus is Ownable {
                 supply = totalDrachmasAmount;
             }
             else {
-                supply = reward.lpToken.balanceOf(address(this));
+                supply = reward.token.balanceOf(address(this));
             }
         }
 
@@ -247,10 +249,12 @@ contract Plutus is Ownable {
         updateReward(_rid, false);
         if (user.amount > 0) {
             uint256 pending = user.amount.mul(rewards.accPolisPerShare).div(1e12).sub(user.rewardDebt);
-            safePolisTransfer(msg.sender, pending);
+            if(pending > 0) {
+                safePolisTransfer(msg.sender, pending);
+            }
         }
         if(_amount > 0) {
-            rewards.lpToken.safeTransferFrom(address(msg.sender), address(this), _amount);
+            rewards.token.safeTransferFrom(address(msg.sender), address(this), _amount);
             user.amount = user.amount.add(_amount);
             if (_rid == DRACHMA_INDEX) {
                 totalDrachmasAmount = totalDrachmasAmount.add(_amount);
@@ -264,7 +268,7 @@ contract Plutus is Ownable {
     function withdrawToken(uint256 _rid, uint256 _amount) public {
         if (_rid == DRACHMA_INDEX) {
             // Drachma must be divisible by 100
-            require(_amount.mod(DRACHMA_AMOUNT) == 0, "withdrawToken: incorrect POLIS amount");
+            require(_amount.mod(DRACHMA_AMOUNT) == 0, "withdrawToken: incorrect DRACHMA amount");
         }
         RewardsInfo storage reward = rewardsInfo[_rid];
         UserInfo storage user = userInfo[_rid][msg.sender];
@@ -276,7 +280,7 @@ contract Plutus is Ownable {
         }
         if(_amount > 0) {
             user.amount = user.amount.sub(_amount);
-            reward.lpToken.safeTransfer(address(msg.sender), _amount);
+            reward.token.safeTransfer(address(msg.sender), _amount);
             if (_rid == DRACHMA_INDEX) {
                 totalDrachmasAmount = totalDrachmasAmount.sub(_amount);
             }
@@ -287,10 +291,10 @@ contract Plutus is Ownable {
 
     // Claim the reward for some treasury
     function claimTreasury(uint _tid) external {
-        require(_tid == SENATE_INDEX || _tid == AGORA_INDEX, "claimTreasury: invalid reward id");
-        RewardsInfo storage treasuryReward = rewardsInfo[_tid];
+        require(_tid < TREASURY_LENGTH, "claimTreasury: invalid reward id");
+        RewardsInfo storage treasuryReward = treasuryInfo[_tid];
+        emit Flag(treasuryReward.allocPoint);
         updateReward(_tid, true);
-        uint256 pending = treasuryReward.accPolisPerShare.div(1e12).sub(treasuryDebts[_tid]);
         address treasury;
         if (_tid == SENATE_INDEX) {
             require(senate != address(0), "claimTreasury: not set yet");
@@ -300,6 +304,7 @@ contract Plutus is Ownable {
             require(agora != address(0), "claimTreasury: not set yet");
             treasury = agora;
         }
+        uint256 pending = treasuryReward.accPolisPerShare.div(1e12).sub(treasuryDebts[_tid]);
         treasuryDebts[_tid] = treasuryReward.accPolisPerShare.div(1e12);
         safePolisTransfer(treasury, pending);
         emit ClaimTreasury(treasury, pending);
@@ -312,7 +317,7 @@ contract Plutus is Ownable {
         uint256 _amount = user.amount;
         user.amount = 0;
         user.rewardDebt = 0;
-        reward.lpToken.safeTransfer(address(msg.sender), _amount);
+        reward.token.safeTransfer(address(msg.sender), _amount);
         emit EmergencyWithdraw(msg.sender, _rid, _amount);
     }
 
@@ -326,10 +331,10 @@ contract Plutus is Ownable {
         }
     }
 
-    function checkRewardDuplicate(IERC20 _lpToken) public view {
+    function checkRewardDuplicate(IERC20 _token) public view {
         uint256 length = rewardsInfo.length;
         for(uint256 rid = 0; rid < length ; ++rid) {
-            require (rewardsInfo[rid].lpToken != _lpToken , "duplicated!");
+            require (rewardsInfo[rid].token != _token , "duplicated!");
         }
     }
 
