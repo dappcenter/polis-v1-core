@@ -2,7 +2,7 @@ const { expectRevert, time } = require('@openzeppelin/test-helpers');
 const Polis = artifacts.require('token/Polis.sol');
 const Senate = artifacts.require('senate/Senate.sol');
 
-contract('Senate', ([tech, community, business, marketing, adoption, newAdoption, communityMembers, owner]) => {
+contract('Senate', ([tech, community, business, marketing, adoption, newAdoption, communityMembers, owner, extra1, extra2]) => {
     beforeEach(async () => {
         this.polis = await Polis.new({ from: owner });
     });
@@ -566,6 +566,233 @@ contract('Senate', ([tech, community, business, marketing, adoption, newAdoption
         await this.senate.withdrawVotedCoins({from: communityMembers})
         communityBalance = await this.polis.balanceOf(communityMembers)
         assert.equal(communityBalance, "500000000000000000000")
+
+    });
+
+    it('should start a voting period with multiple candidates', async () => {
+        this.senate = await Senate.new(tech, community, business, marketing, adoption, this.polis.address, { from: owner });
+
+        // Check initial manager
+        let owners = await this.senate.getManagersOwner();
+
+        assert.equal(owners[0], tech);
+        assert.equal(owners[1], community);
+        assert.equal(owners[2], business);
+        assert.equal(owners[3], marketing);
+        assert.equal(owners[4], adoption);
+
+        let initialized = await this.senate.initialized();
+        assert.equal(initialized, false)
+
+        let voting = await this.senate.voting();
+        assert.equal(voting, false)
+
+        // Mint coins and approve senate to spend coins
+        await this.polis.mint(communityMembers, "10000000000000000000000", {from: owner})
+        await this.polis.approve(this.senate.address, "10000000000000000000000000000000", {from: communityMembers})
+
+        // Advance time to next voting period
+        let nextVotingPeriod = await this.senate.nextVotingPeriod();
+        let nextVotingPeriodTime = parseInt(nextVotingPeriod) + 1;
+        await time.increaseTo(nextVotingPeriodTime)
+
+        // Initialize vote
+        await this.senate.initializeVotingCycle()
+
+        // Voting should be enabled
+        voting = await this.senate.voting();
+        assert.equal(voting, true)
+
+        // Initialization should be disabled
+        initialized = await this.senate.initialized();
+        assert.equal(initialized, false)
+
+        // Submit all candidates
+        // Winner candidate should be added second to make sure the loop works
+        await this.senate.submitCandidate(0, "", {from: owner})
+        await this.senate.submitCandidate(0, "", {from: tech})
+
+        await this.senate.submitCandidate(1, "", {from: communityMembers})
+        await this.senate.submitCandidate(1, "", {from: community})
+
+        await this.senate.submitCandidate(2, "", {from: extra1})
+        await this.senate.submitCandidate(2, "", {from: business})
+
+        await this.senate.submitCandidate(3, "", {from: extra2})
+        await this.senate.submitCandidate(3, "", {from: marketing})
+
+        await this.senate.submitCandidate(4, "", {from: newAdoption})
+        await this.senate.submitCandidate(4, "", {from: adoption})
+
+        // Submit votes 100 for first and 50 for the second.
+        await this.senate.voteCandidate(tech, "100000000000000000000", {from: communityMembers})
+        await this.senate.voteCandidate(owner, "50000000000000000000", {from: communityMembers})
+
+        await this.senate.voteCandidate(community, "100000000000000000000", {from: communityMembers})
+        await this.senate.voteCandidate(communityMembers, "50000000000000000000", {from: communityMembers})
+
+        await this.senate.voteCandidate(business, "100000000000000000000", {from: communityMembers})
+        await this.senate.voteCandidate(extra1, "50000000000000000000", {from: communityMembers})
+
+        await this.senate.voteCandidate(marketing, "100000000000000000000", {from: communityMembers})
+        await this.senate.voteCandidate(extra2, "50000000000000000000", {from: communityMembers})
+
+        await this.senate.voteCandidate(adoption, "100000000000000000000", {from: communityMembers})
+        await this.senate.voteCandidate(newAdoption, "50000000000000000000", {from: communityMembers})
+
+        // Increase time to period ending
+        let finalVotingPeriod = await this.senate.votingPeriodEnd();
+        let finalVotingPeriodTime = parseInt(finalVotingPeriod) + 1;
+
+        await time.increaseTo(finalVotingPeriodTime)
+
+        // Finalize voting
+        await this.senate.finalizeVotingPeriod()
+
+        // Voting should be disabled
+        voting = await this.senate.voting();
+        assert.equal(voting, false)
+
+        // Check winners
+        owners = await this.senate.getManagersOwner();
+
+        assert.equal(owners[0], tech);
+        assert.equal(owners[1], community);
+        assert.equal(owners[2], business);
+        assert.equal(owners[3], marketing);
+        assert.equal(owners[4], adoption);
+
+        // Initialize the contract
+        await this.senate.initialize({from: tech})
+        await this.senate.initialize({from: community})
+        await this.senate.initialize({from: business})
+        await this.senate.initialize({from: marketing})
+        await this.senate.initialize({from: adoption})
+
+        initialized = await this.senate.initialized();
+        assert.equal(initialized, true)
+    });
+
+    it('should ban all members of the Senate by a community global ban and start a voting cycle', async () => {
+        this.senate = await Senate.new(tech, community, business, marketing, adoption, this.polis.address, { from: owner });
+
+        await this.polis.mint(communityMembers, "1000000000000000000000", {from: owner})
+        await this.polis.approve(this.senate.address, "10000000000000000000000000000000", {from: communityMembers})
+
+        // Check initial manager
+        let owners = await this.senate.getManagersOwner();
+
+        assert.equal(owners[0], tech);
+        assert.equal(owners[1], community);
+        assert.equal(owners[2], business);
+        assert.equal(owners[3], marketing);
+        assert.equal(owners[4], adoption);
+
+        // Initialize the contract
+        await this.senate.initialize({from: tech})
+        await this.senate.initialize({from: community})
+        await this.senate.initialize({from: business})
+        await this.senate.initialize({from: marketing})
+        await this.senate.initialize({from: adoption})
+
+        initialized = await this.senate.initialized();
+        assert.equal(initialized, true)
+    
+        let communityBalance = await this.polis.balanceOf(communityMembers);
+        assert.equal(communityBalance, "1000000000000000000000")
+
+        // Try a senate ban without enough coins
+        expectRevert(this.senate.initializeFullSenateBan(), "Senate: not enough votes to ban all senate members");
+
+        // Lock coins to a senate ban
+        await this.senate.submitSenateBan("200000000000000000000", {from: communityMembers})
+
+        // Check community balance
+        communityBalance = await this.polis.balanceOf(communityMembers);
+        assert.equal(communityBalance, "800000000000000000000")
+
+        // Check locked coins
+        let lockedCoinsForBan = await this.senate.communitySenateBanTotalLocked();
+        assert.equal(lockedCoinsForBan, "200000000000000000000")
+
+        // Try a senate ban with only 20% of the supply locked
+        expectRevert(this.senate.initializeFullSenateBan(), "Senate: not enough votes to ban all senate members");
+
+        // Unlock coins from the locked ban
+        await this.senate.withdrawCoinsFromSenateBan({from: communityMembers})
+
+        communityBalance = await this.polis.balanceOf(communityMembers);
+        assert.equal(communityBalance, "1000000000000000000000")
+
+        lockedCoinsForBan = await this.senate.communitySenateBanTotalLocked();
+        assert.equal(lockedCoinsForBan, "0")
+
+        // Lock all the coins from community to test a real ban
+        await this.senate.submitSenateBan("1000000000000000000000", {from: communityMembers})
+
+        // Submit ban
+        await this.senate.initializeFullSenateBan()
+
+        // Initialization should be disabled
+        initialized = await this.senate.initialized();
+        assert.equal(initialized, false)
+
+        // Managers should be removed
+        owners = await this.senate.getManagersOwner();
+
+        assert.equal(owners[0], "0x0000000000000000000000000000000000000000");
+        assert.equal(owners[1], "0x0000000000000000000000000000000000000000");
+        assert.equal(owners[2], "0x0000000000000000000000000000000000000000");
+        assert.equal(owners[3], "0x0000000000000000000000000000000000000000");
+        assert.equal(owners[4], "0x0000000000000000000000000000000000000000");
+
+        let votingPeriod = await this.senate.nextVotingPeriod();
+        let votingPeriodTime = parseInt(votingPeriod);
+
+        assert.equal(votingPeriodTime, await time.latest())
+
+        // Withdraw coins for community ban
+        await this.senate.withdrawCoinsFromSenateBan({from: communityMembers})
+
+        // Increase time
+        await time.increaseTo(votingPeriodTime + 1)
+
+        // Initialize a voting period
+        await this.senate.initializeVotingCycle()
+
+        // Submit candidates
+        await this.senate.submitCandidate(0, "", {from: tech})
+        await this.senate.submitCandidate(1, "", {from: community})
+        await this.senate.submitCandidate(2, "", {from: business})
+        await this.senate.submitCandidate(3, "", {from: marketing})
+        await this.senate.submitCandidate(4, "", {from: adoption})
+
+        // Vote for candidates
+
+        await this.senate.voteCandidate(tech, "100000000000000000000", {from: communityMembers})
+        await this.senate.voteCandidate(community, "100000000000000000000", {from: communityMembers})
+        await this.senate.voteCandidate(business, "100000000000000000000", {from: communityMembers})
+        await this.senate.voteCandidate(marketing, "100000000000000000000", {from: communityMembers})
+        await this.senate.voteCandidate(adoption, "100000000000000000000", {from: communityMembers})
+
+        // Get finalize time
+        let finalizeVoting = await this.senate.votingPeriodEnd()
+        let finalizeVotingTime = parseInt(finalizeVoting) + 1
+        await time.increaseTo(finalizeVotingTime)
+
+        // Finalize voting period
+        await this.senate.finalizeVotingPeriod()
+
+        // Withdraw coins from vote
+        await this.senate.withdrawVotedCoins({from: communityMembers})
+
+        owners = await this.senate.getManagersOwner();
+
+        assert.equal(owners[0], tech);
+        assert.equal(owners[1], community);
+        assert.equal(owners[2], business);
+        assert.equal(owners[3], marketing);
+        assert.equal(owners[4], adoption);
 
     });
 

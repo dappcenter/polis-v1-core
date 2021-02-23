@@ -74,7 +74,7 @@ contract Senate  {
         require(communitySenateBanTotalLocked > minimumRequired, "Senate: not enough votes to ban all senate members");
         
         // Deactivate the contract
-        initialized = false;
+        deactivate();
 
         // Start a voting phase
         voting = true;
@@ -115,7 +115,7 @@ contract Senate  {
         marketing.owner = address(0);
         adoption.owner = address(0);
 
-        initialized = false;
+        deactivate();
         voting = true;
 
         votingPeriodEnd = block.timestamp.add(14 days);
@@ -201,11 +201,8 @@ contract Senate  {
             require(candidateVotes[communityCandidatesArr[0].owner] > 0, "Senate: can't finalize voting because there is only 1 community candidate with 0 votes");
             // If there is only 1 community candidate with more than 1 vote, automatically wins.
             community.owner = communityCandidatesArr[0].owner;
-            for (uint256 i = 0; i < techCandidatesArr.length; i++) {
-
-            }
         } else {
-            Candidate memory choosenCandidate = techCandidatesArr[0];
+            Candidate memory choosenCandidate = communityCandidatesArr[0];
             for (uint256 i = 1; i < communityCandidatesArr.length; i++) {
                 uint256 choosenVotes = candidateVotes[choosenCandidate.owner];
                 if (candidateVotes[communityCandidatesArr[i].owner] > choosenVotes) {
@@ -221,7 +218,7 @@ contract Senate  {
             business.owner = businessCandidatesArr[0].owner;
           
         } else {
-            Candidate memory choosenCandidate = techCandidatesArr[0];
+            Candidate memory choosenCandidate = businessCandidatesArr[0];
             for (uint256 i = 1; i < businessCandidatesArr.length; i++) {
                 uint256 choosenVotes = candidateVotes[choosenCandidate.owner];
                 if (candidateVotes[businessCandidatesArr[i].owner] > choosenVotes) {
@@ -236,7 +233,7 @@ contract Senate  {
             // If there is only 1 marketing candidate with more than 1 vote, automatically wins.
             marketing.owner = marketingCandidatesArr[0].owner;
         } else {
-            Candidate memory choosenCandidate = techCandidatesArr[0];
+            Candidate memory choosenCandidate = marketingCandidatesArr[0];
             for (uint256 i = 1; i < marketingCandidatesArr.length; i++) {
                 uint256 choosenVotes = candidateVotes[choosenCandidate.owner];
                 if (candidateVotes[marketingCandidatesArr[i].owner] > choosenVotes) {
@@ -251,14 +248,14 @@ contract Senate  {
             // If there is only 1 adoption candidate with more than 1 vote, automatically wins.
             adoption.owner = adoptionCandidatesArr[0].owner;
         } else {
-            Candidate memory choosenCandidate = techCandidatesArr[0];
+            Candidate memory choosenCandidate = adoptionCandidatesArr[0];
             for (uint256 i = 1; i < adoptionCandidatesArr.length; i++) {
                 uint256 choosenVotes = candidateVotes[choosenCandidate.owner];
                 if (candidateVotes[adoptionCandidatesArr[i].owner] > choosenVotes) {
                     choosenCandidate = adoptionCandidatesArr[i];
                 }
             }
-            marketing.owner = choosenCandidate.owner;
+            adoption.owner = choosenCandidate.owner;
         }
 
         voting = false;
@@ -356,6 +353,13 @@ contract Senate  {
         }
     }
 
+    function deactivate() internal {
+        for (uint256 i = 0; i < initialization_votes_arr.length; i++) {
+            initialization_votes[initialization_votes_arr[i]] = false;
+        }
+        delete initialization_votes_arr;
+        initialized = false;
+    }
     
     uint256[] proposedBudgetAllocation;
     mapping(address => Vote) approve_new_proposed_budget_allocation;
@@ -453,7 +457,7 @@ contract Senate  {
                 adoption.owner = proposed_manager_replacement.owner;
             }
             
-            initialized = false;
+            deactivate();
         } 
 
         communityReplacementVoteInitialTime = 0;
@@ -517,7 +521,7 @@ contract Senate  {
                     adoption.owner = proposed_manager_replacement.owner;
                 }
 
-                initialized = false;
+                deactivate();
 
                 delete manager_replacement_votes_arr;
                 proposed_manager_replacement.position = 0;
