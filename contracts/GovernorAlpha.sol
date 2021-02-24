@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT
+
 // COPIED FROM https://github.com/compound-finance/compound-protocol/blob/master/contracts/Governance/GovernorAlpha.sol
 // Copyright 2020 Compound Labs, Inc.
 // Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:
@@ -35,10 +37,10 @@ contract GovernorAlpha {
     /// @notice The duration of voting on a proposal, in blocks 17280
     function votingPeriod() public pure returns (uint) { return 17280; } // ~3 days in blocks (assuming 15s blocks)
 
-    /// @notice The address of the Compound Protocol Timelock
+    /// @notice The address of the Polis Protocol Timelock
     TimelockInterface public timelock;
 
-    /// @notice The address of the Compound governance token
+    /// @notice The address of the governance token
     Polis public polis;
 
     /// @notice The address of the Governor Guardian
@@ -168,7 +170,6 @@ contract GovernorAlpha {
 
         uint id = proposalCount;
 
-        // proposals[newProposal.id] = newProposal;
         proposals[id].id = id;
         proposals[id].proposer = msg.sender;
         proposals[id].eta = 0;

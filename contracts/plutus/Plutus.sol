@@ -15,27 +15,19 @@ contract Plutus is Ownable {
 
     // Info of each user.
     struct UserInfo {
-        uint256 amount;         // How many LP tokens the user has provided.
-        uint256 rewardDebt;     // Reward debt. See explanation below.
-        //
-        // We do some fancy math here. Basically, any point in time, the amount of POLIS
+        uint256 amount;         // How many tokens the user has provided.
+        uint256 rewardDebt;     // Reward debt.
+        // Basically, any point in time, the amount of POLIS
         // entitled to a user but is pending to be distributed is:
-        //
         //   pending reward = (user.amount * reward.accPolisPerShare) - user.rewardDebt
-        //
-        // Whenever a user adds a drachma. Here's what happens:
-        //   1. The reward's `accPolisPerShare` (and `lastRewardBlock`) gets updated.
-        //   2. User receives the pending reward sent to his/her address.
-        //   3. User's `amount` gets updated.
-        //   4. User's `rewardDebt` gets updated.
     }
 
     // Info of each reward set.
     struct RewardsInfo {
-        IERC20 token;             // Address of LP token contract.
+        IERC20 token;               // Address of token contract.
         uint256 allocPoint;         // How many allocation points assigned to this reward.
         uint256 lastRewardBlock;    // Last block number that POLIS distribution occurs.
-        uint256 accPolisPerShare;   // Accumulated POLIS per share, times 1e12. See below.
+        uint256 accPolisPerShare;   // Accumulated POLIS per share, times 1e12.
     }
 
     // The POLIS TOKEN
@@ -75,13 +67,10 @@ contract Plutus is Ownable {
     // The block number when POLIS mining starts.
     uint256 public startBlock;
 
-    event Deposit(address indexed user, uint256 indexed rid, uint256 amount);
-    event Withdraw(address indexed user, uint256 indexed rid, uint256 amount);
+    event DepositToken(address indexed user, uint256 indexed rid, uint256 amount);
+    event WithdrawToken(address indexed user, uint256 indexed rid, uint256 amount);
     event ClaimTreasury(address treasury, uint256 amount);
     event EmergencyWithdraw(address indexed user, uint256 indexed rid, uint256 amount);
-    // test
-    event Flag(uint256 ind);
-    event LastRew(uint256 alloc, uint256 rw);
 
     constructor(Polis _polis, uint256 _polisPerBlock, uint256 _startBlock)  {
         require(_polisPerBlock > 0);
@@ -139,8 +128,6 @@ contract Plutus is Ownable {
         treasuryInfo[_tid].allocPoint = _allocPoint;
         treasuryInfo[_tid].lastRewardBlock = _lastRW;
         totalAllocPoint = totalAllocPoint.add(_allocPoint);
-        emit Flag(_allocPoint);
-
     }
 
     // Update the given rewards or treasury POLIS allocation point.
@@ -161,11 +148,7 @@ contract Plutus is Ownable {
     }
 
     // View function to see pending POLIS on frontend.
-    function pendingPolis(uint256 _rid, address _user)
-    external
-    view
-    returns (uint256)
-    {
+    function pendingPolis(uint256 _rid, address _user) external view returns (uint256) {
         RewardsInfo storage reward = rewardsInfo[_rid];
         UserInfo storage user = userInfo[_rid][_user];
         uint256 accPolisPerShare = reward.accPolisPerShare;
@@ -190,8 +173,8 @@ contract Plutus is Ownable {
         for (uint256 rid = 0; rid < rewardsInfo.length; ++rid) {
             updateReward(rid, false);
         }
-        for (uint256 rid = 0; rid < TREASURY_LENGTH; ++rid) {
-            updateReward(rid, true);
+        for (uint256 tid = 0; tid < TREASURY_LENGTH; ++tid) {
+            updateReward(tid, true);
         }
     }
 
@@ -202,8 +185,6 @@ contract Plutus is Ownable {
         if(isTreasury) {
             reward = treasuryInfo[_rid];
             supply = 1;
-            // test
-            emit LastRew(reward.allocPoint, reward.lastRewardBlock);
         }
         else {
             reward = rewardsInfo[_rid];
@@ -261,7 +242,7 @@ contract Plutus is Ownable {
             }
         }
         user.rewardDebt = user.amount.mul(rewards.accPolisPerShare).div(1e12);
-        emit Deposit(msg.sender, _rid, _amount);
+        emit DepositToken(msg.sender, _rid, _amount);
     }
 
     // Withdraw some reward token
@@ -286,14 +267,13 @@ contract Plutus is Ownable {
             }
         }
         user.rewardDebt = user.amount.mul(reward.accPolisPerShare).div(1e12);
-        emit Withdraw(msg.sender, _rid, _amount);
+        emit WithdrawToken(msg.sender, _rid, _amount);
     }
 
     // Claim the reward for some treasury
     function claimTreasury(uint _tid) external {
         require(_tid < TREASURY_LENGTH, "claimTreasury: invalid reward id");
         RewardsInfo storage treasuryReward = treasuryInfo[_tid];
-        emit Flag(treasuryReward.allocPoint);
         updateReward(_tid, true);
         address treasury;
         if (_tid == SENATE_INDEX) {
@@ -331,6 +311,7 @@ contract Plutus is Ownable {
         }
     }
 
+    // Helper function to check if a token has already been added as a reward.
     function checkRewardDuplicate(IERC20 _token) public view {
         uint256 length = rewardsInfo.length;
         for(uint256 rid = 0; rid < length ; ++rid) {
@@ -338,12 +319,14 @@ contract Plutus is Ownable {
         }
     }
 
-    function getRewardsLength() public view returns(uint) {
+    // Helper function to get the amount of tokens added as reward.
+    function getRewardsLength() external view returns(uint) {
         return rewardsInfo.length;
     }
 
-    function getDepositedAmount(uint _pid, address _user) external view returns(uint256) {
-        return userInfo[_pid][_user].amount;
+    // Get the token amount deposited for a specific reward
+    function getDepositedAmount(uint _rid, address _user) external view returns(uint256) {
+        return userInfo[_rid][_user].amount;
     }
 
     // Update senate address

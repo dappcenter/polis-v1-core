@@ -31,7 +31,7 @@ contract('Plutus', ([alice, bob, carol, dev, senate, agora, minter]) => {
             await this.polis.mint(carol, web3.utils.toWei('1000'), { from: dev });
         });
 
-         /*it('should allow emergency withdraw', async () => {
+         it('should allow emergency withdraw', async () => {
             // 100 per block mining rate starting at block 50
             this.plutus = await Plutus.new(this.polis.address, web3.utils.toWei('100'), '50',{ from: dev });
             await this.polis.proposeOwner(this.plutus.address, { from: dev });
@@ -234,7 +234,7 @@ contract('Plutus', ([alice, bob, carol, dev, senate, agora, minter]) => {
             assert.equal((await this.polis.balanceOf(alice)).toString(), web3.utils.toWei('2678'));
             // Asserting final halved polisPerBlock
             assert.equal((await this.plutus.polisPerBlock()).toString(), web3.utils.toWei('64'));
-        }); */
+        });
 
         it('should distribute POLIS properly for each reward token', async () => {
             // Create some different tokens
@@ -285,7 +285,6 @@ contract('Plutus', ([alice, bob, carol, dev, senate, agora, minter]) => {
             assert.equal((await this.polis.balanceOf(senate)).toString(), web3.utils.toWei('510.294117647058823529'));
             // Agora should have 10*100*10/100 + 20*100*10/170 + 10*100*10/240 = 259.31372549019607843
             assert.equal((await this.polis.balanceOf(agora)).toString(), web3.utils.toWei('259.31372549019607843'));
-
         });
     });
 });
