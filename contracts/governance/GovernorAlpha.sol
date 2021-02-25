@@ -16,7 +16,7 @@
 pragma solidity ^0.7.0;
 pragma experimental ABIEncoderV2;
 
-import "./token/Polis.sol";
+import "../token/Polis.sol";
 
 contract GovernorAlpha {
     /// @notice The name of this contract

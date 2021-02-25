@@ -26,7 +26,7 @@ interface IPlutus {
     function halving() external;
     function addReward(uint256 _allocPoint, IERC20 _token) external;
     function setPercentage(uint256 _id, uint256 _allocPoint, bool isTreasury) external;
-    function pendingPolis(uint256 _rid, address _user) external view returns (uint256);
+    function pendingPolis(uint256 _rid, address _user) external view returns(uint256);
     function massUpdateRewards() external;
     function updateReward(uint256 _rid, bool isTreasury) external;
     function depositToken(uint256 _rid, uint256 _amount) external;

@@ -46,7 +46,7 @@ contract Plutus is Ownable {
     // Info of each treasury
     RewardsInfo[TREASURY_LENGTH] public treasuryInfo;
     // Helper vars for treasury
-    uint256[TREASURY_LENGTH] private treasuryDebts;
+    uint256[TREASURY_LENGTH] public treasuryDebts;
     // Senate address
     address public senate;
     // Agora address
@@ -147,7 +147,7 @@ contract Plutus is Ownable {
         }
     }
 
-    // View function to see pending POLIS on frontend.
+    // View function to see pending POLIS on frontend from user.
     function pendingPolis(uint256 _rid, address _user) external view returns (uint256) {
         RewardsInfo storage reward = rewardsInfo[_rid];
         UserInfo storage user = userInfo[_rid][_user];

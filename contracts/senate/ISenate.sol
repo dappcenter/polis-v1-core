@@ -2,7 +2,7 @@
 
 pragma solidity ^0.7.0;
 
-interface Senate  {
+interface ISenate  {
         
     struct Manager {
         uint256 budget;
