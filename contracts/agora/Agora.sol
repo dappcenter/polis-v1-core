@@ -14,13 +14,14 @@ contract Agora is Ownable {
     Plutus plutus;
     IERC20 polis;
 
-    uint public constant AGORA_INDEX = 1;
+    uint public immutable AGORA_INDEX;
 
     event TreasurySent(address recipient, uint256 amount);
 
     constructor(address _plutus, address _polis) {
         plutus = Plutus(_plutus);
         polis = IERC20(_polis);
+        AGORA_INDEX = plutus.AGORA_INDEX();
     }
     
     // ** View functions ** //

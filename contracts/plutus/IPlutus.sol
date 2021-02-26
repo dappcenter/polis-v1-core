@@ -23,6 +23,9 @@ interface IPlutus {
     event ClaimTreasury(address treasury, uint256 amount);
     event EmergencyWithdraw(address indexed user, uint256 indexed rid, uint256 amount);
 
+    function polis() external view returns(address);
+    function SENATE_INDEX() external view returns(uint);
+    function AGORA_INDEX() external view returns(uint);
     function halving() external;
     function addReward(uint256 _allocPoint, IERC20 _token) external;
     function setPercentage(uint256 _id, uint256 _allocPoint, bool isTreasury) external;

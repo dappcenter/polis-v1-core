@@ -1,14 +1,16 @@
 const { expectRevert, time } = require('@openzeppelin/test-helpers');
 const Polis = artifacts.require('token/Polis.sol');
 const Senate = artifacts.require('senate/Senate.sol');
+const Plutus = artifacts.require('plutus/Plutus');
 
 contract('Senate', ([tech, community, business, marketing, adoption, newAdoption, communityMembers, owner, extra1, extra2]) => {
     beforeEach(async () => {
         this.polis = await Polis.new({ from: owner });
+        this.plutus = await Plutus.new(this.polis.address, owner, web3.utils.toWei('100'), '0',{ from: owner });
     });
 
     it('should initialize the contract correctly', async () => {
-        this.senate = await Senate.new(tech, community, business, marketing, adoption, this.polis.address, { from: owner });
+        this.senate = await Senate.new(tech, community, business, marketing, adoption, this.polis.address, this.plutus.address, { from: owner });
         let owners = await this.senate.getManagersOwner();
 
         assert.equal(owners[0], tech);
@@ -38,7 +40,7 @@ contract('Senate', ([tech, community, business, marketing, adoption, newAdoption
     });
 
     it('should initialize the Senate contract by all members', async () => {
-        this.senate = await Senate.new(tech, community, business, marketing, adoption, this.polis.address, { from: owner });
+        this.senate = await Senate.new(tech, community, business, marketing, adoption, this.polis.address, this.plutus.address, { from: owner });
         // The contract should not be initialized when deployed
         let initialized = await this.senate.initialized();
         assert.equal(initialized, false)
@@ -75,7 +77,7 @@ contract('Senate', ([tech, community, business, marketing, adoption, newAdoption
     });
 
     it('should modify the budget proportions by all managers voting', async () => {
-        this.senate = await Senate.new(tech, community, business, marketing, adoption, this.polis.address, { from: owner });
+        this.senate = await Senate.new(tech, community, business, marketing, adoption, this.polis.address, this.plutus.address,{ from: owner });
         
         // Check the initial allocation
         let budgets = await this.senate.getBudgetAllocation();
@@ -183,10 +185,15 @@ contract('Senate', ([tech, community, business, marketing, adoption, newAdoption
     });
 
     it('should enable managers to extract their budget proportions', async () => {
-        this.senate = await Senate.new(tech, community, business, marketing, adoption, this.polis.address, { from: owner });
+        this.customPlutus = await Plutus.new(this.polis.address, extra1, web3.utils.toWei('100'), '100',{ from: owner });
+        await this.polis.proposeOwner(this.customPlutus.address, { from: owner });
+        await this.customPlutus.claimToken(this.polis.address, { from: owner });
+        this.senate = await Senate.new(tech, community, business, marketing, adoption, this.polis.address, this.customPlutus.address,{ from: owner });
+        await this.customPlutus.setSenate(this.senate.address, { from: owner });
 
-        // Mint some tokens for the senate contract.
-        await this.polis.mint(this.senate.address, "100000000000000000000", {from: owner})
+        // Advance 5 blocks to have 100 claimable polis
+        await time.advanceBlockTo('104');
+         await this.senate.claimFunding();
 
         let senateBalance = await this.polis.balanceOf(this.senate.address)
         assert.equal(senateBalance, "100000000000000000000")
@@ -213,6 +220,8 @@ contract('Senate', ([tech, community, business, marketing, adoption, newAdoption
         await this.senate.initialize({from: marketing})
         await this.senate.initialize({from: adoption})
 
+        // At this point we are at block 111. The budget for first distribution will be 240 POLIS.
+        // Every subsequent distribution will be of 20 POLIS.
         // Managers claim the budget
         await this.senate.claimBudget({from: tech})
         await this.senate.claimBudget({from: community})
@@ -220,16 +229,21 @@ contract('Senate', ([tech, community, business, marketing, adoption, newAdoption
         await this.senate.claimBudget({from: marketing})
         await this.senate.claimBudget({from: adoption})
 
+        // 240*30/100 + 4*20*30/100 = 96 POLIS
         let techBalance = await this.polis.balanceOf(tech);
-        assert.equal(techBalance, "30000000000000000000")
+        assert.equal(techBalance.toString(), "96000000000000000000")
+        // 240*10/100 + 4*20*10/100 = 32 POLIS
         let communityBalance = await this.polis.balanceOf(community);
-        assert.equal(communityBalance, "10000000000000000000")
+        assert.equal(communityBalance.toString(), "32000000000000000000")
+        // 240*20/100 + 4*20*20/100 = 64 POLIS
         let businessBalance = await this.polis.balanceOf(business);
-        assert.equal(businessBalance, "20000000000000000000")
+        assert.equal(businessBalance.toString(), "64000000000000000000")
+        // 240*20/100 + 4*20*20/100 = 64 POLIS
         let marketingBalance = await this.polis.balanceOf(marketing);
-        assert.equal(marketingBalance, "20000000000000000000")
+        assert.equal(marketingBalance.toString(), "64000000000000000000")
+        // 240*20/100 + 4*20*20/100 = 64 POLIS
         let adoptionBalance = await this.polis.balanceOf(adoption);
-        assert.equal(adoptionBalance, "20000000000000000000")
+        assert.equal(adoptionBalance.toString(), "64000000000000000000")
 
         senateBalance = await this.polis.balanceOf(this.senate.address);
         assert.equal(senateBalance, "0")
@@ -237,7 +251,7 @@ contract('Senate', ([tech, community, business, marketing, adoption, newAdoption
     });
 
     it('should replace the adoption manager by a full Senate approval', async () => {
-        this.senate = await Senate.new(tech, community, business, marketing, adoption, this.polis.address, { from: owner });
+        this.senate = await Senate.new(tech, community, business, marketing, adoption, this.polis.address, this.plutus.address, { from: owner });
 
         // Check initial manager
         let owners = await this.senate.getManagersOwner();
@@ -289,7 +303,7 @@ contract('Senate', ([tech, community, business, marketing, adoption, newAdoption
     });
 
     it('should replace the adoption manager by a partial Senate approval and community vote', async () => {
-        this.senate = await Senate.new(tech, community, business, marketing, adoption, this.polis.address, { from: owner });
+        this.senate = await Senate.new(tech, community, business, marketing, adoption, this.polis.address, this.plutus.address, { from: owner });
 
         // Check initial manager
         let owners = await this.senate.getManagersOwner();
@@ -398,7 +412,7 @@ contract('Senate', ([tech, community, business, marketing, adoption, newAdoption
     });
 
     it('should start a voting period with single candidates', async () => {
-        this.senate = await Senate.new(tech, community, business, marketing, adoption, this.polis.address, { from: owner });
+        this.senate = await Senate.new(tech, community, business, marketing, adoption, this.polis.address, this.plutus.address, { from: owner });
 
         // Check initial manager
         let owners = await this.senate.getManagersOwner();
@@ -570,7 +584,7 @@ contract('Senate', ([tech, community, business, marketing, adoption, newAdoption
     });
 
     it('should start a voting period with multiple candidates', async () => {
-        this.senate = await Senate.new(tech, community, business, marketing, adoption, this.polis.address, { from: owner });
+        this.senate = await Senate.new(tech, community, business, marketing, adoption, this.polis.address, this.plutus.address, { from: owner });
 
         // Check initial manager
         let owners = await this.senate.getManagersOwner();
@@ -674,7 +688,7 @@ contract('Senate', ([tech, community, business, marketing, adoption, newAdoption
     });
 
     it('should ban all members of the Senate by a community global ban and start a voting cycle', async () => {
-        this.senate = await Senate.new(tech, community, business, marketing, adoption, this.polis.address, { from: owner });
+        this.senate = await Senate.new(tech, community, business, marketing, adoption, this.polis.address, this.plutus.address, { from: owner });
 
         await this.polis.mint(communityMembers, "1000000000000000000000", {from: owner})
         await this.polis.approve(this.senate.address, "10000000000000000000000000000000", {from: communityMembers})
