@@ -7,7 +7,7 @@ import "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 import "@openzeppelin/contracts/utils/EnumerableSet.sol";
 import "@openzeppelin/contracts/math/SafeMath.sol";
 import "../token/Polis.sol";
-
+import "../token/Validator.sol";
 
 contract Plutus is Ownable {
     using SafeMath for uint256;
@@ -36,6 +36,9 @@ contract Plutus is Ownable {
     uint256 public polisPerBlock;
     // POLIS next scheduled halving
     uint256 public nextHalving;
+
+    // The Validator Token, used to vote in governance
+    Validator public validator;
 
     // Treasuries
     uint public constant TREASURY_LENGTH = 2;
@@ -67,14 +70,20 @@ contract Plutus is Ownable {
     // The block number when POLIS mining starts.
     uint256 public startBlock;
 
+    modifier tokensClaimed() {
+        require(polis.owner() == address(this) && validator.owner() == address(this), "Plutus does not own required tokens");
+        _;
+    }
+
     event DepositToken(address indexed user, uint256 indexed rid, uint256 amount);
     event WithdrawToken(address indexed user, uint256 indexed rid, uint256 amount);
     event ClaimTreasury(address treasury, uint256 amount);
     event EmergencyWithdraw(address indexed user, uint256 indexed rid, uint256 amount);
 
-    constructor(Polis _polis, uint256 _polisPerBlock, uint256 _startBlock)  {
+    constructor(Polis _polis, Validator _val, uint256 _polisPerBlock, uint256 _startBlock)  {
         require(_polisPerBlock > 0);
         polis = _polis;
+        validator = _val;
         polisPerBlock = _polisPerBlock;
         startBlock = _startBlock;
         initialize();
@@ -217,7 +226,7 @@ contract Plutus is Ownable {
     }
 
     // Deposit some reward token to get polis
-    function depositToken(uint256 _rid, uint256 _amount) public {
+    function depositToken(uint256 _rid, uint256 _amount) public tokensClaimed{
         require ( _rid < rewardsInfo.length , "deposit: pool exists?");
         require(msg.sender != senate && msg.sender != agora);
 
@@ -239,6 +248,8 @@ contract Plutus is Ownable {
             user.amount = user.amount.add(_amount);
             if (_rid == DRACHMA_INDEX) {
                 totalDrachmasAmount = totalDrachmasAmount.add(_amount);
+                // Mint the validators to drachma user
+                validator.mint(address(msg.sender), _amount);
             }
         }
         user.rewardDebt = user.amount.mul(rewards.accPolisPerShare).div(1e12);
@@ -246,7 +257,7 @@ contract Plutus is Ownable {
     }
 
     // Withdraw some reward token
-    function withdrawToken(uint256 _rid, uint256 _amount) public {
+    function withdrawToken(uint256 _rid, uint256 _amount) public tokensClaimed{
         if (_rid == DRACHMA_INDEX) {
             // Drachma must be divisible by 100
             require(_amount.mod(DRACHMA_AMOUNT) == 0, "withdrawToken: incorrect DRACHMA amount");
@@ -264,6 +275,8 @@ contract Plutus is Ownable {
             reward.token.safeTransfer(address(msg.sender), _amount);
             if (_rid == DRACHMA_INDEX) {
                 totalDrachmasAmount = totalDrachmasAmount.sub(_amount);
+                // Burn the validators from drachma user
+                validator.burn(address(msg.sender), _amount);
             }
         }
         user.rewardDebt = user.amount.mul(reward.accPolisPerShare).div(1e12);
@@ -341,12 +354,12 @@ contract Plutus is Ownable {
         agora = _addr;
     }
 
-    // Claim ownership of POLIS
-    function claimToken() public {
-        polis.claimOwnership();
+    // Claim ownership of address
+    function claimToken(address _token) public {
+        Ownable(_token).claimOwnership();
     }
 
-    // Propose ownership of POLIS
+    // Propose ownership of polis to address
     function proposePolisOwner(address _owner) public onlyOwner {
         polis.proposeOwner(_owner);
     }

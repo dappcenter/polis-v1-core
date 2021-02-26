@@ -1,18 +1,19 @@
 const { expectRevert, time } = require('@openzeppelin/test-helpers');
 const Polis = artifacts.require('token/Polis.sol');
 const Plutus = artifacts.require('plutus/Plutus.sol');
+const Validator = artifacts.require('token/Validator');
 const Agora = artifacts.require('agora/Agora.sol');
 
-contract('Agora', ([project1, dev]) => {
+contract('Agora', ([project1, dev, validators]) => {
     beforeEach(async () => {
         this.polis = await Polis.new({ from: dev });
     });
 
     it('should claim funds from plutus', async () => {
         // Start mining at block 20
-        this.plutus = await Plutus.new(this.polis.address, web3.utils.toWei('100'), '20', { from: dev });
+        this.plutus = await Plutus.new(this.polis.address, validators, web3.utils.toWei('100'), '20', { from: dev });
         await this.polis.proposeOwner(this.plutus.address, { from: dev });
-        await this.plutus.claimToken({ from: dev });
+        await this.plutus.claimToken(this.polis.address, { from: dev });
         this.agora = await Agora.new(this.plutus.address, this.polis.address, { from: dev })
         await this.plutus.setAgora(this.agora.address, { from: dev });
         await time.advanceBlockTo('49');
@@ -24,9 +25,9 @@ contract('Agora', ([project1, dev]) => {
 
     it('should estimate pending funds', async () => {
         // Start mining at block 60
-        this.plutus = await Plutus.new(this.polis.address, web3.utils.toWei('100'), '60', { from: dev });
+        this.plutus = await Plutus.new(this.polis.address, validators, web3.utils.toWei('100'), '60', { from: dev });
         await this.polis.proposeOwner(this.plutus.address, { from: dev });
-        await this.plutus.claimToken({ from: dev });
+        await this.plutus.claimToken(this.polis.address, { from: dev });
         this.agora = await Agora.new(this.plutus.address, this.polis.address, { from: dev })
         await this.plutus.setAgora(this.agora.address, { from: dev });
         await time.advanceBlockTo('74');
@@ -40,9 +41,9 @@ contract('Agora', ([project1, dev]) => {
 
     it('should send funds to addresses', async () => {
         // Start mining at block 100
-        this.plutus = await Plutus.new(this.polis.address, web3.utils.toWei('100'), '100', { from: dev });
+        this.plutus = await Plutus.new(this.polis.address, validators, web3.utils.toWei('100'), '100', { from: dev });
         await this.polis.proposeOwner(this.plutus.address, { from: dev });
-        await this.plutus.claimToken({ from: dev });
+        await this.plutus.claimToken(this.polis.address, { from: dev });
         this.agora = await Agora.new(this.plutus.address, this.polis.address, { from: dev })
         await this.plutus.setAgora(this.agora.address, { from: dev });
         await time.advanceBlockTo('119');

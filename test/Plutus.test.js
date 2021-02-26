@@ -2,17 +2,21 @@ const { expectRevert, time } = require('@openzeppelin/test-helpers');
 const Polis = artifacts.require('token/Polis.sol');
 const Plutus = artifacts.require('plutus/Plutus.sol');
 const MockERC20 = artifacts.require('token/MockToken.sol');
+const Validator = artifacts.require('token/Validator');
 
 
 contract('Plutus', ([alice, bob, carol, dev, senate, agora, minter]) => {
     beforeEach(async () => {
         this.polis = await Polis.new({ from: dev });
+        this.validators = await Validator.new({ from: dev });
     });
 
     it('should set correct state variables', async () => {
-        this.plutus = await Plutus.new(this.polis.address, web3.utils.toWei('1000'), '0', { from: dev });
+        this.plutus = await Plutus.new(this.polis.address, this.validators.address, web3.utils.toWei('1000'), '0', { from: dev });
         await this.polis.proposeOwner(this.plutus.address, { from: dev });
-        await this.plutus.claimToken({ from: dev });
+        await this.plutus.claimToken(this.polis.address, { from: dev });
+        await this.validators.proposeOwner(this.plutus.address, { from: dev });
+        await this.plutus.claimToken(this.validators.address, { from: dev });
         const polis = await this.plutus.polis();
         const drachmaCost = await this.plutus.DRACHMA_AMOUNT();
         const owner = await this.plutus.owner();
@@ -33,9 +37,11 @@ contract('Plutus', ([alice, bob, carol, dev, senate, agora, minter]) => {
 
          it('should allow emergency withdraw', async () => {
             // 100 per block mining rate starting at block 50
-            this.plutus = await Plutus.new(this.polis.address, web3.utils.toWei('100'), '50',{ from: dev });
+            this.plutus = await Plutus.new(this.polis.address, this.validators.address, web3.utils.toWei('100'), '50',{ from: dev });
             await this.polis.proposeOwner(this.plutus.address, { from: dev });
-            await this.plutus.claimToken({ from: dev });
+            await this.plutus.claimToken(this.polis.address, { from: dev });
+            await this.validators.proposeOwner(this.plutus.address, { from: dev });
+            await this.plutus.claimToken(this.validators.address, { from: dev });
             await this.polis.approve(this.plutus.address, web3.utils.toWei('1000'), { from: bob });
             await this.plutus.depositToken('0', web3.utils.toWei('500'), { from: bob });
             assert.equal((await this.polis.balanceOf(bob)).toString(), web3.utils.toWei('500'));
@@ -45,9 +51,11 @@ contract('Plutus', ([alice, bob, carol, dev, senate, agora, minter]) => {
 
         it('should give out POLIS only after farming time', async () => {
             // 100 per block mining rate starting at block 100
-            this.plutus = await Plutus.new(this.polis.address, web3.utils.toWei('100'), '100', { from: dev });
+            this.plutus = await Plutus.new(this.polis.address, this.validators.address, web3.utils.toWei('100'), '100', { from: dev });
             await this.polis.proposeOwner(this.plutus.address, { from: dev });
-            await this.plutus.claimToken({ from: dev });
+            await this.plutus.claimToken(this.polis.address, { from: dev });
+            await this.validators.proposeOwner(this.plutus.address, { from: dev });
+            await this.plutus.claimToken(this.validators.address, { from: dev });
             await this.polis.approve(this.plutus.address, web3.utils.toWei('1000'), { from: bob });
             // Bob starts with 1000 polis, deposits 100 for a drachma
             await this.plutus.depositToken('0', web3.utils.toWei('100'), { from: bob });
@@ -71,9 +79,11 @@ contract('Plutus', ([alice, bob, carol, dev, senate, agora, minter]) => {
 
         it('should not distribute POLIS if no one deposit', async () => {
             // 100 per block mining rate starting at block 200
-            this.plutus = await Plutus.new(this.polis.address, web3.utils.toWei('100'), '200',{ from: dev });
+            this.plutus = await Plutus.new(this.polis.address, this.validators.address, web3.utils.toWei('100'), '200',{ from: dev });
             await this.polis.proposeOwner(this.plutus.address, { from: dev });
-            await this.plutus.claimToken({ from: dev });
+            await this.plutus.claimToken(this.polis.address, { from: dev });
+            await this.validators.proposeOwner(this.plutus.address, { from: dev });
+            await this.plutus.claimToken(this.validators.address, { from: dev });
             await this.polis.approve(this.plutus.address, web3.utils.toWei('1000'), { from: bob });
             await time.advanceBlockTo('199');
             assert.equal((await this.polis.totalSupply()).toString(), web3.utils.toWei('3000'));
@@ -94,9 +104,11 @@ contract('Plutus', ([alice, bob, carol, dev, senate, agora, minter]) => {
 
         it('should distribute POLIS properly for each drachma', async () => {
             // 100 per block mining rate starting at block 300
-            this.plutus = await Plutus.new(this.polis.address, web3.utils.toWei('100'), '200',{ from: dev });
+            this.plutus = await Plutus.new(this.polis.address, this.validators.address, web3.utils.toWei('100'), '200',{ from: dev });
             await this.polis.proposeOwner(this.plutus.address, { from: dev });
-            await this.plutus.claimToken({ from: dev });
+            await this.plutus.claimToken(this.polis.address, { from: dev });
+            await this.validators.proposeOwner(this.plutus.address, { from: dev });
+            await this.plutus.claimToken(this.validators.address, { from: dev });
             await this.polis.approve(this.plutus.address, web3.utils.toWei('1000'), { from: alice });
             await this.polis.approve(this.plutus.address, web3.utils.toWei('1000'), { from: carol });
             await this.polis.approve(this.plutus.address, web3.utils.toWei('1000'), { from: bob });
@@ -154,9 +166,11 @@ contract('Plutus', ([alice, bob, carol, dev, senate, agora, minter]) => {
         it('should distribute POLIS between treasuries and drachmas', async () => {
             // Treasury's default distribution is 70% drachmas, 20% DAO and 10% commuinity
             // 100 per block mining rate starting at block 400
-            this.plutus = await Plutus.new(this.polis.address, web3.utils.toWei('100'), '400',{ from: dev });
+            this.plutus = await Plutus.new(this.polis.address, this.validators.address, web3.utils.toWei('100'), '400',{ from: dev });
             await this.polis.proposeOwner(this.plutus.address, { from: dev });
-            await this.plutus.claimToken({ from: dev });
+            await this.plutus.claimToken(this.polis.address, { from: dev });
+            await this.validators.proposeOwner(this.plutus.address, { from: dev });
+            await this.plutus.claimToken(this.validators.address, { from: dev });
             await this.polis.approve(this.plutus.address, web3.utils.toWei('1000'), { from: alice });
             await this.polis.approve(this.plutus.address, web3.utils.toWei('1000'), { from: bob });
             // Set the treasury addresses
@@ -205,9 +219,11 @@ contract('Plutus', ([alice, bob, carol, dev, senate, agora, minter]) => {
         });
         it('should halve the POLIS emission each year', async () => {
             // 100 per block mining rate starting at block 300
-            this.plutus = await Plutus.new(this.polis.address, web3.utils.toWei('100'), '500',{ from: dev });
+            this.plutus = await Plutus.new(this.polis.address, this.validators.address, web3.utils.toWei('100'), '500',{ from: dev });
             await this.polis.proposeOwner(this.plutus.address, { from: dev });
-            await this.plutus.claimToken({ from: dev });
+            await this.plutus.claimToken(this.polis.address, { from: dev });
+            await this.validators.proposeOwner(this.plutus.address, { from: dev });
+            await this.plutus.claimToken(this.validators.address, { from: dev });
             await this.polis.approve(this.plutus.address, web3.utils.toWei('1000'), { from: alice });
             // Alice adds 1 drachma at block 500
             await time.advanceBlockTo('499');
@@ -247,9 +263,11 @@ contract('Plutus', ([alice, bob, carol, dev, senate, agora, minter]) => {
             //await this.indexFund.transfer(bob, '1000', { from: minter });
             await this.indexFund.transfer(carol, '1000', { from: minter });
             // 100 per block farming rate starting at block 600
-            this.plutus = await Plutus.new(this.polis.address, web3.utils.toWei('100'), '600',{ from: dev });
+            this.plutus = await Plutus.new(this.polis.address, this.validators.address, web3.utils.toWei('100'), '600',{ from: dev });
             await this.polis.proposeOwner(this.plutus.address, { from: dev });
-            await this.plutus.claimToken({ from: dev });
+            await this.plutus.claimToken(this.polis.address, { from: dev });
+            await this.validators.proposeOwner(this.plutus.address, { from: dev });
+            await this.plutus.claimToken(this.validators.address, { from: dev });
             await this.polis.approve(this.plutus.address, web3.utils.toWei('1000'), { from: alice });
             await this.polisBnbLP.approve(this.plutus.address, '1000', { from: bob });
             await this.indexFund.approve(this.plutus.address, '1000', { from: carol });

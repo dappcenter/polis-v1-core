@@ -1,7 +1,8 @@
 const { expectRevert, time } = require('@openzeppelin/test-helpers');
 const ethers = require('ethers');
-const Polis = artifacts.require('Polis');
-const Plutus = artifacts.require('Plutus');
+const Polis = artifacts.require('token/Polis');
+const Validator = artifacts.require('token/Validator');
+const Plutus = artifacts.require('plutus/Plutus');
 const Timelock = artifacts.require('Timelock');
 const GovernorAlpha = artifacts.require('governance/GovernorAlpha');
 const GovernorOmega = artifacts.require('governance/GovernorOmega');
@@ -15,33 +16,48 @@ function encodeParameters(types, values) {
 contract('Governance', ([alice, senate, agora, proposer, voter, dev, project1]) => {
     beforeEach(async () => {
         this.polis = await Polis.new({ from: alice });
-        await this.polis.mint(alice, web3.utils.toWei('1000'), { from: alice });
+        this.validators = await Validator.new({ from: alice });
+        await this.polis.mint(alice, web3.utils.toWei('100000'), { from: alice });
+        await this.polis.mint(proposer, web3.utils.toWei('1100'), { from: alice });
+        await this.polis.mint(voter, web3.utils.toWei('4000'), { from: alice });
+        this.plutus = await Plutus.new(this.polis.address, this.validators.address, web3.utils.toWei('100'), '0',{ from: alice });
+        await this.polis.proposeOwner(this.plutus.address, { from: alice });
+        await this.plutus.claimToken(this.polis.address, { from: alice });
+        await this.validators.proposeOwner(this.plutus.address, { from: alice });
+        await this.plutus.claimToken(this.validators.address, { from: alice });
+        await this.polis.approve(this.plutus.address, web3.utils.toWei('100000'), { from: alice });
+        await this.polis.approve(this.plutus.address, web3.utils.toWei('100000'), { from: voter });
+        await this.polis.approve(this.plutus.address, web3.utils.toWei('100000'), { from: proposer });
+    });
+
+    it('should get Governance Votes from Plutus', async () => {
+        console.log((await this.validators.owner()).toString());
+        console.log(this.plutus.address);
+        await this.plutus.depositToken('0', web3.utils.toWei('100'), { from: alice });
+        assert.equal((await this.validators.totalSupply()).toString(), web3.utils.toWei('100'));
+        assert.equal((await this.validators.balanceOf(alice)).toString(), web3.utils.toWei('100'));
+        // Withdraw DRACHMA, lose votes
+        await this.plutus.withdrawToken('0', web3.utils.toWei('100'), { from: alice });
+        assert.equal((await this.validators.totalSupply()).toString(), '0');
+        assert.equal((await this.validators.balanceOf(alice)).toString(), '0');
     });
     // GovernorAlpha (temporary name) allows a decentralized control of Plutus
     it('should allow GovernorAlpha to control Plutus', async () => {
-        this.plutus = await Plutus.new(this.polis.address, web3.utils.toWei('100'), '0',{ from: alice });
-        await this.polis.proposeOwner(this.plutus.address, { from: alice });
-        await this.plutus.claimToken({ from: alice });
-        await this.polis.approve(this.plutus.address, web3.utils.toWei('1000'), { from: alice });
-        await this.plutus.depositToken('0', web3.utils.toWei('100'), { from: alice });
-        // Perform another deposit to make sure some POLIS are minted in that 1 block.
-        await this.plutus.depositToken('0', web3.utils.toWei('0'), { from: alice });
-        assert.equal((await this.polis.totalSupply()).toString(), web3.utils.toWei('1070'));
-        assert.equal((await this.polis.balanceOf(alice)).toString(), web3.utils.toWei('970'));
-
         // Transfer ownership to timelock contract
         this.timelock = await Timelock.new(alice, time.duration.days(2), { from: alice });
-        this.gov = await GovernorAlpha.new(this.timelock.address, this.polis.address, alice, { from: alice });
+        // Create Governance with Validators as votes
+        this.gov = await GovernorAlpha.new(this.timelock.address, this.validators.address, alice, { from: alice });
         await this.timelock.setPendingAdmin(this.gov.address, { from: alice });
         await this.gov.__acceptAdmin({ from: alice });
 
-        // Proposer needs at least 1% to propose and 4% votes to pass the proposal
-        // transfer 4% so votes can get quorum
-        await this.polis.transfer(voter, web3.utils.toWei('42.8'), { from: alice });
-        // 0.99% cannot propose
-        await this.polis.transfer(proposer, web3.utils.toWei('10.6'), { from: alice });
-        await this.polis.delegate(voter, { from: voter });
-        await this.polis.delegate(proposer, { from: proposer });
+        // Proposer needs > 1% to propose and 4% votes to pass the proposal
+        // deposit 4% so votes can get quorum
+        await this.plutus.depositToken('0', web3.utils.toWei('4000'), { from: voter });
+        await this.plutus.depositToken('0', web3.utils.toWei('900'), { from: proposer });
+        // At this point, the supply of votes is 99800, the 4% is 3992 and 1% is 998
+        await this.plutus.depositToken('0', web3.utils.toWei('94900'), { from: alice });
+        await this.validators.delegate(voter, { from: voter });
+        await this.validators.delegate(proposer, { from: proposer });
 
         // Transfer plutus to timelock
         await this.plutus.proposeOwner(this.timelock.address, { from: alice });
@@ -64,8 +80,8 @@ contract('Governance', ([alice, senate, agora, proposer, voter, dev, project1]) 
             ),
             'GovernorAlpha::propose: proposer votes below proposal threshold',
         );
-        // missing 0.011% to proposer
-        await this.polis.transfer(proposer, web3.utils.toWei('0.1000000001'), { from: alice });
+        // Proposer gets 200 more votes. The Supply is now 100000, the 1% is 1000 and proposer has 1100. Voter has 4$
+        await this.plutus.depositToken('0', web3.utils.toWei('200'), { from: proposer });
         // Proposer submits proposal to change treasury addresses
         assert.equal((await this.plutus.senate()).toString(), '0x0000000000000000000000000000000000000000');
         assert.equal((await this.plutus.agora()).toString(), '0x0000000000000000000000000000000000000000');
@@ -122,24 +138,20 @@ contract('Governance', ([alice, senate, agora, proposer, voter, dev, project1]) 
 
     // GovernorOmega controls the Treasury. It has lesser requirements for proposal and voting
     it('should allow GovernorOmega to control Agora', async () => {
-        this.plutus = await Plutus.new(this.polis.address, web3.utils.toWei('100'), '0',{ from: alice });
-        await this.polis.proposeOwner(this.plutus.address, { from: alice });
-        await this.plutus.claimToken({ from: alice });
+
         // Transfer ownership of Agora to a DIFFERENT timelock contract
         this.timelockOmega = await Timelock.new(alice, time.duration.days(2), { from: alice });
-        this.govOmega = await GovernorOmega.new(this.timelockOmega.address, this.polis.address, alice, { from: alice });
+        this.govOmega = await GovernorOmega.new(this.timelockOmega.address, this.validators.address, alice, { from: alice });
         await this.timelockOmega.setPendingAdmin(this.govOmega.address, { from: alice });
         await this.govOmega.__acceptAdmin({ from: alice });
 
-        // Proposer needs at least 100 POLIS to propose and 4% votes to pass the proposal
+        // Proposer needs at least 100 Validators to propose and 4% votes to pass the proposal
         // transfer 4% so votes can get quorum
-        console.log((await this.govOmega.quorumVotes()).toString());
-        console.log((await this.govOmega.proposalThreshold()).toString());
+        await this.plutus.depositToken('0', web3.utils.toWei('4000'), { from: voter });
+        await this.plutus.depositToken('0', web3.utils.toWei('95900'), { from: alice });
 
-        await this.polis.transfer(voter, web3.utils.toWei('40'), { from: alice });
-        await this.polis.transfer(proposer, web3.utils.toWei('99'), { from: alice });
-        await this.polis.delegate(voter, { from: voter });
-        await this.polis.delegate(proposer, { from: proposer });
+        await this.validators.delegate(voter, { from: voter });
+        await this.validators.delegate(proposer, { from: proposer });
 
         // Create and transfer Agora to timelock
         this.agora = await Agora.new(this.plutus.address, this.polis.address, { from: dev })
@@ -165,7 +177,7 @@ contract('Governance', ([alice, senate, agora, proposer, voter, dev, project1]) 
             'GovernorOmega::propose: proposer votes below proposal threshold',
         );
         // Transfer min to propose
-        await this.polis.transfer(proposer, web3.utils.toWei('1.000001'), { from: alice });
+        await this.plutus.depositToken('0', web3.utils.toWei('100'), { from: proposer });
         console.log((await this.polis.balanceOf(proposer)).toString());
         this.govOmega.propose(
             [this.agora.address], ['0'], ['fundAddress(address,uint256)'],
@@ -190,6 +202,6 @@ contract('Governance', ([alice, senate, agora, proposer, voter, dev, project1]) 
         await time.increase(time.duration.days(3));
         await this.govOmega.execute('1');
         assert.equal((await this.polis.balanceOf(project1)).toString(), web3.utils.toWei('1000'));
-    }).timeout(1000000);
+    });
 
 });
