@@ -26,7 +26,7 @@ contract GovernorOmega {
     function quorumVotes() public view returns (uint) { return validator.totalSupply() / 25; } // 4% of Supply
 
     /// @notice The number of votes required in order for a voter to become a proposer
-    function proposalThreshold() public view returns (uint) { return 100*1 ether; } // 100 validators
+    function proposalThreshold() public view returns (uint) { return 100 * 1 ether; } // 100 validators = 1 DRACHMA
 
     /// @notice The maximum number of actions that can be included in a proposal
     function proposalMaxOperations() public pure returns (uint) { return 10; } // 10 actions

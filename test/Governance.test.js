@@ -13,13 +13,14 @@ function encodeParameters(types, values) {
     return abi.encode(types, values);
 }
 
+// ** Change the parameter votingPeriod() to 100 for testing!! (and dont forget to change it BACK) ** //
 contract('Governance', ([alice, senate, agora, proposer, voter, dev, project1]) => {
     beforeEach(async () => {
         this.polis = await Polis.new({ from: alice });
         this.validators = await Validator.new({ from: alice });
         await this.polis.mint(alice, web3.utils.toWei('100000'), { from: alice });
         await this.polis.mint(proposer, web3.utils.toWei('1100'), { from: alice });
-        await this.polis.mint(voter, web3.utils.toWei('4000'), { from: alice });
+        await this.polis.mint(voter, web3.utils.toWei('60000'), { from: alice });
         this.plutus = await Plutus.new(this.polis.address, this.validators.address, web3.utils.toWei('100'), '0',{ from: alice });
         await this.polis.proposeOwner(this.plutus.address, { from: alice });
         await this.plutus.claimToken(this.polis.address, { from: alice });
@@ -31,8 +32,6 @@ contract('Governance', ([alice, senate, agora, proposer, voter, dev, project1]) 
     });
 
     it('should get Governance Votes from Plutus', async () => {
-        console.log((await this.validators.owner()).toString());
-        console.log(this.plutus.address);
         await this.plutus.depositToken('0', web3.utils.toWei('100'), { from: alice });
         assert.equal((await this.validators.totalSupply()).toString(), web3.utils.toWei('100'));
         assert.equal((await this.validators.balanceOf(alice)).toString(), web3.utils.toWei('100'));
@@ -50,12 +49,12 @@ contract('Governance', ([alice, senate, agora, proposer, voter, dev, project1]) 
         await this.timelock.setPendingAdmin(this.gov.address, { from: alice });
         await this.gov.__acceptAdmin({ from: alice });
 
-        // Proposer needs > 1% to propose and 4% votes to pass the proposal
-        // deposit 4% so votes can get quorum
-        await this.plutus.depositToken('0', web3.utils.toWei('4000'), { from: voter });
+        // Proposer needs > 1% to propose and 60% votes to pass the proposal
+        // deposit 60% so votes can get quorum
+        await this.plutus.depositToken('0', web3.utils.toWei('60000'), { from: voter });
         await this.plutus.depositToken('0', web3.utils.toWei('900'), { from: proposer });
-        // At this point, the supply of votes is 99800, the 4% is 3992 and 1% is 998
-        await this.plutus.depositToken('0', web3.utils.toWei('94900'), { from: alice });
+        await this.plutus.depositToken('0', web3.utils.toWei('38900'), { from: alice });
+        // At this point, the supply of votes is 99800, the 60% is 59880 and 1% is 998
         await this.validators.delegate(voter, { from: voter });
         await this.validators.delegate(proposer, { from: proposer });
 
@@ -80,8 +79,10 @@ contract('Governance', ([alice, senate, agora, proposer, voter, dev, project1]) 
             ),
             'GovernorAlpha::propose: proposer votes below proposal threshold',
         );
-        // Proposer gets 200 more votes. The Supply is now 100000, the 1% is 1000 and proposer has 1100. Voter has 4$
+        // Proposer gets 200 more votes. The Supply is now 100000, the 1% is 1000 and proposer has 1100. Voter has 60%
         await this.plutus.depositToken('0', web3.utils.toWei('200'), { from: proposer });
+        assert.equal((await this.gov.quorumVotes()).toString(), (await this.validators.balanceOf(voter)).toString())
+        assert.equal((await this.gov.proposalThreshold()).toString(), web3.utils.toWei('1000'))
         // Proposer submits proposal to change treasury addresses
         assert.equal((await this.plutus.senate()).toString(), '0x0000000000000000000000000000000000000000');
         assert.equal((await this.plutus.agora()).toString(), '0x0000000000000000000000000000000000000000');
@@ -178,7 +179,6 @@ contract('Governance', ([alice, senate, agora, proposer, voter, dev, project1]) 
         );
         // Transfer min to propose
         await this.plutus.depositToken('0', web3.utils.toWei('100'), { from: proposer });
-        console.log((await this.polis.balanceOf(proposer)).toString());
         this.govOmega.propose(
             [this.agora.address], ['0'], ['fundAddress(address,uint256)'],
             [encodeParameters(['address', 'uint256'], [project1, web3.utils.toWei('1000')])],
