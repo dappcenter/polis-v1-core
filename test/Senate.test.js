@@ -10,7 +10,7 @@ contract('Senate', ([tech, community, business, marketing, adoption, newAdoption
     });
 
     it('should initialize the contract correctly', async () => {
-        this.senate = await Senate.new(tech, community, business, marketing, adoption, this.polis.address, this.plutus.address, { from: owner });
+        this.senate = await Senate.new(tech, community, business, marketing, adoption, this.plutus.address, { from: owner });
         let owners = await this.senate.getManagersOwner();
 
         assert.equal(owners[0], tech);
@@ -40,7 +40,7 @@ contract('Senate', ([tech, community, business, marketing, adoption, newAdoption
     });
 
     it('should initialize the Senate contract by all members', async () => {
-        this.senate = await Senate.new(tech, community, business, marketing, adoption, this.polis.address, this.plutus.address, { from: owner });
+        this.senate = await Senate.new(tech, community, business, marketing, adoption, this.plutus.address, { from: owner });
         // The contract should not be initialized when deployed
         let initialized = await this.senate.initialized();
         assert.equal(initialized, false)
@@ -77,7 +77,7 @@ contract('Senate', ([tech, community, business, marketing, adoption, newAdoption
     });
 
     it('should modify the budget proportions by all managers voting', async () => {
-        this.senate = await Senate.new(tech, community, business, marketing, adoption, this.polis.address, this.plutus.address,{ from: owner });
+        this.senate = await Senate.new(tech, community, business, marketing, adoption, this.plutus.address,{ from: owner });
         
         // Check the initial allocation
         let budgets = await this.senate.getBudgetAllocation();
@@ -188,7 +188,7 @@ contract('Senate', ([tech, community, business, marketing, adoption, newAdoption
         this.customPlutus = await Plutus.new(this.polis.address, extra1, web3.utils.toWei('100'), '100',{ from: owner });
         await this.polis.proposeOwner(this.customPlutus.address, { from: owner });
         await this.customPlutus.claimToken(this.polis.address, { from: owner });
-        this.senate = await Senate.new(tech, community, business, marketing, adoption, this.polis.address, this.customPlutus.address,{ from: owner });
+        this.senate = await Senate.new(tech, community, business, marketing, adoption, this.customPlutus.address,{ from: owner });
         await this.customPlutus.setSenate(this.senate.address, { from: owner });
 
         // Advance 5 blocks to have 100 claimable polis
@@ -251,7 +251,7 @@ contract('Senate', ([tech, community, business, marketing, adoption, newAdoption
     });
 
     it('should replace the adoption manager by a full Senate approval', async () => {
-        this.senate = await Senate.new(tech, community, business, marketing, adoption, this.polis.address, this.plutus.address, { from: owner });
+        this.senate = await Senate.new(tech, community, business, marketing, adoption, this.plutus.address, { from: owner });
 
         // Check initial manager
         let owners = await this.senate.getManagersOwner();
@@ -303,7 +303,7 @@ contract('Senate', ([tech, community, business, marketing, adoption, newAdoption
     });
 
     it('should replace the adoption manager by a partial Senate approval and community vote', async () => {
-        this.senate = await Senate.new(tech, community, business, marketing, adoption, this.polis.address, this.plutus.address, { from: owner });
+        this.senate = await Senate.new(tech, community, business, marketing, adoption, this.plutus.address, { from: owner });
 
         // Check initial manager
         let owners = await this.senate.getManagersOwner();
@@ -412,7 +412,7 @@ contract('Senate', ([tech, community, business, marketing, adoption, newAdoption
     });
 
     it('should start a voting period with single candidates', async () => {
-        this.senate = await Senate.new(tech, community, business, marketing, adoption, this.polis.address, this.plutus.address, { from: owner });
+        this.senate = await Senate.new(tech, community, business, marketing, adoption, this.plutus.address, { from: owner });
 
         // Check initial manager
         let owners = await this.senate.getManagersOwner();
@@ -584,7 +584,7 @@ contract('Senate', ([tech, community, business, marketing, adoption, newAdoption
     });
 
     it('should start a voting period with multiple candidates', async () => {
-        this.senate = await Senate.new(tech, community, business, marketing, adoption, this.polis.address, this.plutus.address, { from: owner });
+        this.senate = await Senate.new(tech, community, business, marketing, adoption, this.plutus.address, { from: owner });
 
         // Check initial manager
         let owners = await this.senate.getManagersOwner();
@@ -688,7 +688,7 @@ contract('Senate', ([tech, community, business, marketing, adoption, newAdoption
     });
 
     it('should ban all members of the Senate by a community global ban and start a voting cycle', async () => {
-        this.senate = await Senate.new(tech, community, business, marketing, adoption, this.polis.address, this.plutus.address, { from: owner });
+        this.senate = await Senate.new(tech, community, business, marketing, adoption, this.plutus.address, { from: owner });
 
         await this.polis.mint(communityMembers, "1000000000000000000000", {from: owner})
         await this.polis.approve(this.senate.address, "10000000000000000000000000000000", {from: communityMembers})

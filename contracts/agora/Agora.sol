@@ -12,15 +12,15 @@ contract Agora is Ownable {
     using SafeERC20 for IERC20;
 
     Plutus plutus;
-    IERC20 polis;
+    IERC20 immutable polis;
 
     uint public immutable AGORA_INDEX;
 
     event TreasurySent(address recipient, uint256 amount);
 
-    constructor(address _plutus, address _polis) {
-        plutus = Plutus(_plutus);
-        polis = IERC20(_polis);
+    constructor(Plutus _plutus, IERC20 _polis) {
+        plutus = _plutus;
+        polis = _polis;
         AGORA_INDEX = plutus.AGORA_INDEX();
     }
     

@@ -38,7 +38,7 @@ contract Plutus is Ownable {
     uint256 public nextHalving;
 
     // The Validator Token, used to vote in governance
-    Validator public validator;
+    Validator immutable validator;
 
     // Treasuries
     uint public constant TREASURY_LENGTH = 2;
@@ -86,12 +86,7 @@ contract Plutus is Ownable {
         validator = _val;
         polisPerBlock = _polisPerBlock;
         startBlock = _startBlock;
-        initialize();
-        nextHalving = block.timestamp.add(365 days);
-    }
-
-    // Initialize the drachma and treasury data
-    function initialize() internal {
+        // Initialize Drachma and treasury data
         uint256 lastRewardBlock = block.number > startBlock ? block.number : startBlock;
         // Senate
         addTreasury(SENATE_INDEX, 20, lastRewardBlock);
@@ -101,12 +96,13 @@ contract Plutus is Ownable {
         totalAllocPoint = totalAllocPoint.add(70);
         rewardsInfo.push(
             RewardsInfo({
-            token: IERC20(polis),
-            allocPoint: 70,
-            lastRewardBlock: lastRewardBlock,
-            accPolisPerShare: 0
+        token: IERC20(polis),
+        allocPoint: 70,
+        lastRewardBlock: lastRewardBlock,
+        accPolisPerShare: 0
         }));
         assert(totalAllocPoint == 100);
+        nextHalving = block.timestamp.add(365 days);
     }
 
     function halving() external {
@@ -133,9 +129,7 @@ contract Plutus is Ownable {
 
     // Add a new treasury. Setup in initialization
     function addTreasury(uint256 _tid, uint256 _allocPoint, uint256 _lastRW) internal {
-        treasuryInfo[_tid].token = IERC20(polis);
-        treasuryInfo[_tid].allocPoint = _allocPoint;
-        treasuryInfo[_tid].lastRewardBlock = _lastRW;
+        treasuryInfo[_tid] = RewardsInfo(IERC20(polis), _allocPoint, _lastRW, 0);
         totalAllocPoint = totalAllocPoint.add(_allocPoint);
     }
 
