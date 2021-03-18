@@ -110,12 +110,12 @@ contract Senate  {
         uint256 lockedCoins = communitySenateBanLocked[msg.sender];
         communitySenateBanTotalLocked = communitySenateBanTotalLocked.sub(lockedCoins);
         communitySenateBanLocked[msg.sender] = 0;
-        token.transfer(msg.sender, lockedCoins);
+        token.safeTransfer(msg.sender, lockedCoins);
     }
 
     function submitSenateBan(uint256 amount) external {
         require(amount != 0, "Senate: cannot submit 0 tokens");
-        token.transferFrom(msg.sender, address(this), amount);
+        token.safeTransferFrom(msg.sender, address(this), amount);
         communitySenateBanTotalLocked = communitySenateBanTotalLocked.add(amount);
         communitySenateBanLocked[msg.sender] = communitySenateBanLocked[msg.sender].add(amount);
     }
@@ -288,13 +288,13 @@ contract Senate  {
         uint256 votedAmount = votesLockedTokens[msg.sender];
         totalVotesLockedTokens = totalVotesLockedTokens.sub(votedAmount);
         votesLockedTokens[msg.sender] = 0;
-        token.transfer(msg.sender, votedAmount);
+        token.safeTransfer(msg.sender, votedAmount);
     }
 
     function voteCandidate(address _candidate, uint256 amount) external {
         Candidate memory candidate = candidates[_candidate];
         require(candidate.owner != address(0), "Senate: voted candidate is not proposed");
-        token.transferFrom(msg.sender, address(this), amount);
+        token.safeTransferFrom(msg.sender, address(this), amount);
         candidateVotes[candidate.owner] = candidateVotes[candidate.owner].add(amount);
         votesLockedTokens[msg.sender] = votesLockedTokens[msg.sender].add(amount);
         totalVotesLockedTokens = totalVotesLockedTokens.add(amount);
@@ -317,11 +317,11 @@ contract Senate  {
         uint256 businessBudget = budget.mul(business.budget).div(100);
         uint256 marketingBudget = budget.mul(marketing.budget).div(100);
         uint256 adoptionBudget = budget.mul(adoption.budget).div(100);
-        token.transfer(tech.owner, techBudget);
-        token.transfer(community.owner, communityBudget);
-        token.transfer(business.owner, businessBudget);
-        token.transfer(marketing.owner, marketingBudget);
-        token.transfer(adoption.owner, adoptionBudget);
+        token.safeTransfer(tech.owner, techBudget);
+        token.safeTransfer(community.owner, communityBudget);
+        token.safeTransfer(business.owner, businessBudget);
+        token.safeTransfer(marketing.owner, marketingBudget);
+        token.safeTransfer(adoption.owner, adoptionBudget);
     }
     
     
@@ -486,12 +486,12 @@ contract Senate  {
         uint256 lockedTokens = replacementVotesTokensLocked[msg.sender];
         replacementVotesTotalLocked = replacementVotesTotalLocked.sub(lockedTokens);
         replacementVotesTokensLocked[msg.sender] = 0;
-        token.transfer(msg.sender, lockedTokens);
+        token.safeTransfer(msg.sender, lockedTokens);
     }
 
     function submitApprovalForVoteReplacement(uint256 amount) external {
         require(amount != 0, "Senate: cannot submit approval with 0 tokens");
-        token.transferFrom(msg.sender, address(this), amount);
+        token.safeTransferFrom(msg.sender, address(this), amount);
         replacementVotesTokensLocked[msg.sender] = replacementVotesTokensLocked[msg.sender].add(amount);
         replacementVotesTotalLocked = replacementVotesTotalLocked.add(amount);
     }
