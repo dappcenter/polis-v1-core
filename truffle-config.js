@@ -32,6 +32,18 @@ module.exports = {
       gas: 3000000,      //make sure this gas allocation isn't over 4M, which is the max
       gasPrice: web3.utils.toWei('16', 'gwei')
 
+    },
+    bsctest: {
+      provider: function() {
+        return new HDWalletProvider(mnemonic, `https://data-seed-prebsc-1-s1.binance.org:8545/`)
+      },
+      network_id: 97,
+      // gas: 9223372036854775807,      //make sure this gas allocation isn't over 4M, which is the max
+      // gasPrice: web3.utils.toWei('0', 'gwei')
+      confirmations: 10,
+      timeoutBlocks: 200,
+      skipDryRun: true
+
     }
   },
   //
@@ -48,7 +60,8 @@ module.exports = {
 
   },
   plugins: [
-    "solidity-coverage"
+    "solidity-coverage",
+    'truffle-plugin-verify'
   ],
   api_keys: {
     bscscan: bscscanKey,

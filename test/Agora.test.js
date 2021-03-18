@@ -10,17 +10,17 @@ contract('Agora', ([project1, dev, validators]) => {
     });
 
     it('should claim funds from plutus', async () => {
-        // Start mining at block 20
-        this.plutus = await Plutus.new(this.polis.address, validators, web3.utils.toWei('100'), '20', { from: dev });
+        // Start mining at block 40
+        this.plutus = await Plutus.new(this.polis.address, validators, web3.utils.toWei('100'), '40', { from: dev });
         await this.polis.proposeOwner(this.plutus.address, { from: dev });
         await this.plutus.claimToken(this.polis.address, { from: dev });
         this.agora = await Agora.new(this.plutus.address, this.polis.address, { from: dev })
         await this.plutus.setAgora(this.agora.address, { from: dev });
         await time.advanceBlockTo('49');
         await this.agora.claimFunding();
-        // 30*10 polis
-        assert.equal((await this.polis.totalSupply()).toString(), web3.utils.toWei('300'));
-        assert.equal((await this.agora.getTreasuryBalance()).toString(), web3.utils.toWei('300'));
+        // 10*10 polis
+        assert.equal((await this.polis.totalSupply()).toString(), web3.utils.toWei('100'));
+        assert.equal((await this.agora.getTreasuryBalance()).toString(), web3.utils.toWei('100'));
     });
 
     it('should estimate pending funds', async () => {

@@ -16,9 +16,9 @@ contract Validator is Ownable {
 
     uint256 private _totalSupply;
 
-    string private _name;
-    string private _symbol;
-    uint8 private _decimals;
+    string private constant _name = "Validator Vote";
+    string private constant _symbol = "VALIDATOR";
+    uint8 private constant _decimals = 18;
 
     // ** Governance variables ** //
 
@@ -89,9 +89,6 @@ contract Validator is Ownable {
     * construction.
     */
     constructor () public {
-        _name = "Validator Vote";
-        _symbol = "VVOTE";
-        _decimals = 18;
     }
 
 

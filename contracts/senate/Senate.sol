@@ -50,14 +50,12 @@ contract Senate  {
         address _business,
         address _marketing,
         address _adoption,
-        address _token,
         IPlutus _plutus
         ) {
         plutus = _plutus;
         SENATE_INDEX = plutus.SENATE_INDEX();
-        token = IERC20(_token);
-        require(plutus.polis() == _token);
-        
+        token = IERC20(plutus.polis());
+
         tech = Manager(30, _tech);
         community = Manager(10, _community);
         business = Manager(20, _business);
@@ -416,10 +414,7 @@ contract Senate  {
                 }
                 
                 // Once the vote is counted, reset the votes mapping
-                approve_new_proposed_budget_allocation[approve_new_proposed_budget_allocation_arr[i].manager].voted = false;
-                approve_new_proposed_budget_allocation[approve_new_proposed_budget_allocation_arr[i].manager].approve = 0;
-                approve_new_proposed_budget_allocation[approve_new_proposed_budget_allocation_arr[i].manager].manager = address(0);
-
+                approve_new_proposed_budget_allocation[approve_new_proposed_budget_allocation_arr[i].manager] = Vote(0, false, address(0));
             }
             
             if (approvals >= 3) {
@@ -511,7 +506,7 @@ contract Senate  {
         _replaceManager();
     }
     
-    function _replaceManager() internal onlyManager {
+    function _replaceManager() internal {
         if (manager_replacement_votes_arr.length == 5) {
             uint256 approvals = 0;
 
@@ -522,10 +517,7 @@ contract Senate  {
                 }
                 
                 // Once the vote is counted, reset the votes mapping
-                manager_replacement_votes[manager_replacement_votes_arr[i].manager].voted = false;
-                manager_replacement_votes[manager_replacement_votes_arr[i].manager].approve = 0;
-                manager_replacement_votes[manager_replacement_votes_arr[i].manager].manager = address(0);
-
+                manager_replacement_votes[manager_replacement_votes_arr[i].manager] = Vote(0, false, address(0));
             }
 
                 // If there is a full Senate approval, the replacement should be submitted

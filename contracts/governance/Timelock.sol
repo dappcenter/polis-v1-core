@@ -40,7 +40,7 @@ contract Timelock {
     uint256 public constant GRACE_PERIOD = 14 days;
 
     /// @notice the minimum length of the timelock delay
-    uint256 public constant MINIMUM_DELAY = 2 days;
+    uint256 public constant MINIMUM_DELAY = 1 hours;
 
     /// @notice the maximum length of the timelock delay
     uint256 public constant MAXIMUM_DELAY = 30 days;
@@ -101,7 +101,7 @@ contract Timelock {
 
     function queueTransaction(address target, uint256 value, string memory signature, bytes memory data, uint256 eta) public returns (bytes32) {
         require(msg.sender == admin, "Timelock::queueTransaction: Call must come from admin.");
-        require(eta >= getBlockTimestamp().add(delay), "Timelock::queueTransaction: Estimated execution block must satisfy delay.");
+        require(eta >= block.timestamp.add(delay), "Timelock::queueTransaction: Estimated execution block must satisfy delay.");
 
         bytes32 txHash = keccak256(abi.encode(target, value, signature, data, eta));
         queuedTransactions[txHash] = true;
@@ -124,8 +124,8 @@ contract Timelock {
 
         bytes32 txHash = keccak256(abi.encode(target, value, signature, data, eta));
         require(queuedTransactions[txHash], "Timelock::executeTransaction: Transaction hasn't been queued.");
-        require(getBlockTimestamp() >= eta, "Timelock::executeTransaction: Transaction hasn't surpassed time lock.");
-        require(getBlockTimestamp() <= eta.add(GRACE_PERIOD), "Timelock::executeTransaction: Transaction is stale.");
+        require(block.timestamp >= eta, "Timelock::executeTransaction: Transaction hasn't surpassed time lock.");
+        require(block.timestamp <= eta.add(GRACE_PERIOD), "Timelock::executeTransaction: Transaction is stale.");
 
         queuedTransactions[txHash] = false;
 
@@ -151,10 +151,6 @@ contract Timelock {
         ClaimableInterface(addr).claimOwnership();
     }
 
-    function getBlockTimestamp() internal view returns (uint) {
-        // solium-disable-next-line security/no-block-members
-        return block.timestamp;
-    }
 }
 
 interface ClaimableInterface {
