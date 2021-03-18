@@ -88,7 +88,7 @@ contract Validator is Ownable {
     * All three of these values are immutable: they can only be set once during
     * construction.
     */
-    constructor () public {
+    constructor () {
     }
 
 

@@ -16,14 +16,17 @@
 pragma solidity ^0.7.0;
 pragma experimental ABIEncoderV2;
 
+import "@openzeppelin/contracts/math/SafeMath.sol";
 import "../token/Validator.sol";
 
 contract GovernorOmega {
+    using SafeMath for uint256;
+
     /// @notice The name of this contract
     string public constant name = "POLIS Governor Omega";
 
     /// @notice The number of votes in support of a proposal required in order for a quorum to be reached and for a vote to succeed
-    function quorumVotes() public view returns (uint) { return validator.totalSupply() / 25; } // 4% of Supply
+    function quorumVotes() public view returns (uint) { return validator.totalSupply().div(25); } // 4% of Supply
 
     /// @notice The number of votes required in order for a voter to become a proposer
     function proposalThreshold() public view returns (uint) { return 100 * 1 ether; } // 100 validators = 1 DRACHMA
