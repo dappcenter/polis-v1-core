@@ -5,7 +5,6 @@ pragma solidity ^0.7.0;
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 import "@openzeppelin/contracts/math/SafeMath.sol";
-import "../plutus/IPlutus.sol";
 
 contract Senate  {
     using SafeMath for uint256;
@@ -35,26 +34,14 @@ contract Senate  {
     }
     
     IERC20 public token;
-    IPlutus public plutus;
-    uint public immutable SENATE_INDEX;
-
 
     bool public voting;
     bool public initialized;
     uint256 public nextVotingPeriod;
     uint256 public votingPeriodEnd;
     
-    constructor(
-        address _tech,
-        address _community,
-        address _business,
-        address _marketing,
-        address _adoption,
-        IPlutus _plutus
-        ) {
-        plutus = _plutus;
-        SENATE_INDEX = plutus.SENATE_INDEX();
-        token = IERC20(plutus.polis());
+    constructor(address _tech, address _community, address _business, address _marketing, address _adoption, address _token) {
+        token = IERC20(_token);
 
         tech = Manager(30, _tech);
         community = Manager(10, _community);
@@ -299,17 +286,12 @@ contract Senate  {
         votesLockedTokens[msg.sender] = votesLockedTokens[msg.sender].add(amount);
         totalVotesLockedTokens = totalVotesLockedTokens.add(amount);
     }
-
-    function claimFunding() public {
-        plutus.claimTreasury(SENATE_INDEX);
-    }
     
     
     // ** Single Manager functions ** //
     
     function claimBudget() public onlyManager {
         require(initialized, "Senate: contract is not initialized yet");
-        claimFunding();
         uint256 balance = token.balanceOf(address(this));
         uint256 budget = balance.sub(totalVotesLockedTokens).sub(communitySenateBanTotalLocked).sub(replacementVotesTotalLocked);
         uint256 techBudget = budget.mul(tech.budget).div(100);

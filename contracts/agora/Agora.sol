@@ -11,17 +11,14 @@ contract Agora is Ownable {
     using SafeMath for uint256;
     using SafeERC20 for IERC20;
 
-    Plutus plutus;
+    Plutus immutable plutus;
     IERC20 immutable polis;
-
-    uint public immutable AGORA_INDEX;
 
     event TreasurySent(address recipient, uint256 amount);
 
     constructor(Plutus _plutus, IERC20 _polis) {
         plutus = _plutus;
         polis = _polis;
-        AGORA_INDEX = plutus.AGORA_INDEX();
     }
     
     // ** View functions ** //
@@ -32,8 +29,8 @@ contract Agora is Ownable {
 
     // Amounts that treasury can claim from plutus at current block
     function pendingFunds() public view returns(uint256) {
-        (, uint256 alloc, uint256 lastRewardBlock, uint256 polisShare) = plutus.treasuryInfo(AGORA_INDEX);
-        uint256 debt = plutus.treasuryDebts(AGORA_INDEX);
+        (, uint256 alloc, uint256 lastRewardBlock, uint256 polisShare) = plutus.treasuryInfo();
+        uint256 debt = plutus.treasuryDebt();
         if (block.number > lastRewardBlock) {
             uint256 multiplier = block.number.sub(lastRewardBlock);
             uint256 polisReward = multiplier.mul(plutus.polisPerBlock()).mul(alloc).div(plutus.totalAllocPoint());
@@ -45,7 +42,7 @@ contract Agora is Ownable {
     // ** Public functions ** //
 
     function claimFunding() public {
-        plutus.claimTreasury(AGORA_INDEX);
+        plutus.claimTreasury();
     }
 
     function fundAddress(address _recipient, uint256 _amount) external onlyOwner {
