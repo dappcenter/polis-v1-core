@@ -324,4 +324,11 @@ contract Plutus is Ownable {
     function proposePolisOwner(address _owner) public onlyOwner {
         polis.proposeOwner(_owner);
     }
+
+    // Change polis per block. Affects rewards for all users.
+    function changePolisPerBlock(uint256 _amount) public onlyOwner {
+        require(_amount > 0, "changePolisPerBlock: invalid amount");
+        massUpdateRewards();
+        polisPerBlock = _amount;
+    }
 }
