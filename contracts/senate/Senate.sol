@@ -166,6 +166,8 @@ contract Senate  {
             adoptionCandidates[msg.sender] = candidate;
             require(adoptionCandidatesArr.length <= 10, "Senate: already more than 10 adoption candidates submited");
             adoptionCandidatesArr.push(candidate);
+        } else {
+            revert("Candidate position is not known");
         }
     }
 
@@ -334,8 +336,9 @@ contract Senate  {
             return marketing;
         } else if (sender == adoption.owner) {
             return adoption;
+        } else {
+            revert("Sender is not a manager");
         }
-        return Manager(0, address(0));
     }
     
     // ** Multi-votes functions ** //
