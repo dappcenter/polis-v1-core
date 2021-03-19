@@ -1,10 +1,10 @@
 const { expectRevert, time } = require('@openzeppelin/test-helpers');
 const Polis = artifacts.require('token/Polis.sol');
 const Plutus = artifacts.require('plutus/Plutus.sol');
-const Validator = artifacts.require('token/Validator');
 const Agora = artifacts.require('agora/Agora.sol');
+const MockERC20 = artifacts.require('token/MockToken.sol');
 
-contract('Agora', ([project1, dev, validators]) => {
+contract('Agora', ([project1, dev, validators, project2]) => {
     beforeEach(async () => {
         this.polis = await Polis.new({ from: dev });
     });
@@ -51,5 +51,13 @@ contract('Agora', ([project1, dev, validators]) => {
         await expectRevert(this.agora.fundAddress(project1, web3.utils.toWei('600'), {from: dev}), "fundAddress: not enough funds for request")
         await this.agora.fundAddress(project1, web3.utils.toWei('600'), {from: dev});
         assert.equal((await this.polis.balanceOf(project1)).toString(), web3.utils.toWei('600'));
+        // In case of needing to extract a different token
+        this.token = await MockERC20.new('Token', 'TOK', '10000000000', { from: dev });
+        await this.token.transfer(this.agora.address, '10000000000', {from: dev});
+        assert.equal((await this.token.balanceOf(this.agora.address)).toString(), '10000000000');
+        await this.agora.extractToken(project2, '10000000000', this.token.address, {from: dev});
+        assert.equal((await this.token.balanceOf(project2)).toString(), '10000000000');
+
+
     });
 });

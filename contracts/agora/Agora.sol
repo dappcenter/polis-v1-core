@@ -53,4 +53,11 @@ contract Agora is Ownable {
         polis.safeTransfer(_recipient, _amount);
         emit TreasurySent(_recipient, _amount);
     }
+
+
+    function extractToken(address _recipient, uint256 _amount, IERC20 _token) external onlyOwner {
+        require(address(_token) != address(polis), "invalid");
+        require(_token.balanceOf(address(this)) >= _amount, "not enough balance");
+        _token.safeTransfer(_recipient, _amount);
+    }
 }
