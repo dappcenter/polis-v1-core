@@ -40,18 +40,10 @@ contract Plutus is Ownable {
     // The Validator Token, used to vote in governance
     Validator immutable validator;
 
-    // Treasuries
-    uint public constant TREASURY_LENGTH = 2;
-    // Index for Treasury 1: Senate
-    uint public constant SENATE_INDEX = 0;
-    // Index for Treasury 2: Agora
-    uint public constant AGORA_INDEX = 1;
-    // Info of each treasury
-    RewardsInfo[TREASURY_LENGTH] public treasuryInfo;
+    // Treasury
+    RewardsInfo public treasuryInfo;
     // Helper vars for treasury
-    uint256[TREASURY_LENGTH] public treasuryDebts;
-    // Senate address
-    address public senate;
+    uint256 public treasuryDebt;
     // Agora address
     address public agora;
 
@@ -88,10 +80,9 @@ contract Plutus is Ownable {
         startBlock = _startBlock;
         // Initialize Drachma and treasury data
         uint256 lastRewardBlock = block.number > startBlock ? block.number : startBlock;
-        // Senate
-        addTreasury(SENATE_INDEX, 20, lastRewardBlock);
-        // Agora
-        addTreasury(AGORA_INDEX, 10, lastRewardBlock);
+        // Agora with 30 alloc points
+        treasuryInfo = RewardsInfo(IERC20(polis), 30, lastRewardBlock, 0);
+        totalAllocPoint = totalAllocPoint.add(30);
         // Initial drachma rewards. This one guarantees that polis staking rewards match DRACHMA_INDEX
         totalAllocPoint = totalAllocPoint.add(70);
         rewardsInfo.push(
@@ -127,20 +118,14 @@ contract Plutus is Ownable {
         }));
     }
 
-    // Add a new treasury. Setup in initialization
-    function addTreasury(uint256 _tid, uint256 _allocPoint, uint256 _lastRW) internal {
-        treasuryInfo[_tid] = RewardsInfo(IERC20(polis), _allocPoint, _lastRW, 0);
-        totalAllocPoint = totalAllocPoint.add(_allocPoint);
-    }
-
     // Update the given rewards or treasury POLIS allocation point.
     function setPercentage(uint256 _id, uint256 _allocPoint, bool isTreasury) public onlyOwner {
         massUpdateRewards();
         if(isTreasury) {
-            totalAllocPoint = totalAllocPoint.sub(treasuryInfo[_id].allocPoint).add(
+            totalAllocPoint = totalAllocPoint.sub(treasuryInfo.allocPoint).add(
                 _allocPoint
             );
-            treasuryInfo[_id].allocPoint = _allocPoint;
+            treasuryInfo.allocPoint = _allocPoint;
         }
         else {
             totalAllocPoint = totalAllocPoint.sub(rewardsInfo[_id].allocPoint).add(
@@ -176,9 +161,7 @@ contract Plutus is Ownable {
         for (uint256 rid = 0; rid < rewardsInfo.length; ++rid) {
             updateReward(rid, false);
         }
-        for (uint256 tid = 0; tid < TREASURY_LENGTH; ++tid) {
-            updateReward(tid, true);
-        }
+        updateReward(0, true);
     }
 
     // Update reward variables to be up-to-date.
@@ -186,7 +169,7 @@ contract Plutus is Ownable {
         RewardsInfo storage reward;
         uint256 supply;
         if(isTreasury) {
-            reward = treasuryInfo[_rid];
+            reward = treasuryInfo;
             supply = 1;
         }
         else {
@@ -221,8 +204,8 @@ contract Plutus is Ownable {
 
     // Deposit some reward token to get polis
     function depositToken(uint256 _rid, uint256 _amount) public tokensClaimed{
-        require ( _rid < rewardsInfo.length , "deposit: pool exists?");
-        require(msg.sender != senate && msg.sender != agora);
+        require ( _rid < rewardsInfo.length , "depositToken: invalid reward id");
+        require(msg.sender != agora);
 
         if (_rid == DRACHMA_INDEX) {
             // Drachma must be divisible by 100
@@ -277,24 +260,14 @@ contract Plutus is Ownable {
         emit WithdrawToken(msg.sender, _rid, _amount);
     }
 
-    // Claim the reward for some treasury
-    function claimTreasury(uint _tid) external {
-        require(_tid < TREASURY_LENGTH, "claimTreasury: invalid reward id");
-        RewardsInfo storage treasuryReward = treasuryInfo[_tid];
-        updateReward(_tid, true);
+    // Claim the reward for Agora
+    function claimTreasury() external {
+        updateReward(0, true);
         address treasury;
-        if (_tid == SENATE_INDEX) {
-            require(senate != address(0), "claimTreasury: not set yet");
-            treasury = senate;
-        }
-        else {
-            require(agora != address(0), "claimTreasury: not set yet");
-            treasury = agora;
-        }
-        uint256 pending = treasuryReward.accPolisPerShare.div(1e12).sub(treasuryDebts[_tid]);
-        treasuryDebts[_tid] = treasuryReward.accPolisPerShare.div(1e12);
-        safePolisTransfer(treasury, pending);
-        emit ClaimTreasury(treasury, pending);
+        uint256 pending = treasuryInfo.accPolisPerShare.div(1e12).sub(treasuryDebt);
+        treasuryDebt = treasuryInfo.accPolisPerShare.div(1e12);
+        safePolisTransfer(agora, pending);
+        emit ClaimTreasury(agora, pending);
     }
 
     // Withdraw without caring about rewards. EMERGENCY ONLY.
@@ -334,12 +307,6 @@ contract Plutus is Ownable {
     // Get the token amount deposited for a specific reward
     function getDepositedAmount(uint _rid, address _user) external view returns(uint256) {
         return userInfo[_rid][_user].amount;
-    }
-
-    // Update senate address
-    function setSenate(address _addr) external onlyOwner{
-        require(_addr != address(0), "senate: invalid");
-        senate = _addr;
     }
 
     // Update agora address

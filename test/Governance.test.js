@@ -14,7 +14,7 @@ function encodeParameters(types, values) {
 }
 
 // ** Change the parameter votingPeriod() to 100 for testing!! (and dont forget to change it BACK) ** //
-contract('Governance', ([alice, senate, agora, proposer, voter, dev, project1]) => {
+contract('Governance', ([alice, agora, proposer, voter, dev, project1]) => {
     beforeEach(async () => {
         this.polis = await Polis.new({ from: alice });
         this.validators = await Validator.new({ from: alice });
@@ -66,15 +66,15 @@ contract('Governance', ([alice, senate, agora, proposer, voter, dev, project1]) 
         // Change the treasury addresses
         // Owner is now timelock, so alice cannot change it
         await expectRevert(
-            this.plutus.setSenate(senate, { from: alice }),
+            this.plutus.setAgora(agora, { from: alice }),
             'Ownable: caller is not the owner',
         );
         // Proposal doesnt have enough votes to make the proposal
         await expectRevert(
             this.gov.propose(
-                [this.plutus.address, this.plutus.address], ['0', '0'], ['setSenate(address)', "setAgora(address)"],
-                [encodeParameters(['address'], [senate]), encodeParameters(['address'], [agora])],
-                'Change treasury1 address and treasury2 address',
+                [this.plutus.address], ['0'], ["setAgora(address)"],
+                [encodeParameters(['address'], [agora])],
+                'Change Agora address',
                 { from: proposer },
             ),
             'GovernorAlpha::propose: proposer votes below proposal threshold',
@@ -84,12 +84,11 @@ contract('Governance', ([alice, senate, agora, proposer, voter, dev, project1]) 
         assert.equal((await this.gov.quorumVotes()).toString(), (await this.validators.balanceOf(voter)).toString())
         assert.equal((await this.gov.proposalThreshold()).toString(), web3.utils.toWei('1000'))
         // Proposer submits proposal to change treasury addresses
-        assert.equal((await this.plutus.senate()).toString(), '0x0000000000000000000000000000000000000000');
         assert.equal((await this.plutus.agora()).toString(), '0x0000000000000000000000000000000000000000');
         this.gov.propose(
-            [this.plutus.address, this.plutus.address], ['0', '0'], ['setSenate(address)', "setAgora(address)"],
-            [encodeParameters(['address'], [senate]), encodeParameters(['address'], [agora])],
-            'Change treasury1 address and treasury2 address',
+            [this.plutus.address], ['0'], ["setAgora(address)"],
+            [encodeParameters(['address'], [agora])],
+            'Change Agora address',
             { from: proposer },
         );
         for (let i = 0; i < 3; ++i) {
@@ -108,7 +107,6 @@ contract('Governance', ([alice, senate, agora, proposer, voter, dev, project1]) 
         await expectRevert(this.gov.execute('1'), "Timelock::executeTransaction: Transaction hasn't surpassed time lock.");
         await time.increase(time.duration.days(3));
         await this.gov.execute('1');
-        assert.equal((await this.plutus.senate()).toString(), senate);
         assert.equal((await this.plutus.agora()).toString(), agora);
 
         // Move ownership of polis to alice

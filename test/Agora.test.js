@@ -18,9 +18,9 @@ contract('Agora', ([project1, dev, validators]) => {
         await this.plutus.setAgora(this.agora.address, { from: dev });
         await time.advanceBlockTo('49');
         await this.agora.claimFunding();
-        // 10*10 polis
-        assert.equal((await this.polis.totalSupply()).toString(), web3.utils.toWei('100'));
-        assert.equal((await this.agora.getTreasuryBalance()).toString(), web3.utils.toWei('100'));
+        // 30*10 polis
+        assert.equal((await this.polis.totalSupply()).toString(), web3.utils.toWei('300'));
+        assert.equal((await this.agora.getTreasuryBalance()).toString(), web3.utils.toWei('300'));
     });
 
     it('should estimate pending funds', async () => {
@@ -31,12 +31,12 @@ contract('Agora', ([project1, dev, validators]) => {
         this.agora = await Agora.new(this.plutus.address, this.polis.address, { from: dev })
         await this.plutus.setAgora(this.agora.address, { from: dev });
         await time.advanceBlockTo('74');
-        // 14*10 polis
-        assert.equal((await this.agora.pendingFunds()).toString(), web3.utils.toWei('140'));
+        // 14*30 polis
+        assert.equal((await this.agora.pendingFunds()).toString(), web3.utils.toWei('420'));
         await this.agora.claimFunding();
         await time.advanceBlockTo('87');
-        // 12*10 polis
-        assert.equal((await this.agora.pendingFunds()).toString(), web3.utils.toWei('120'));
+        // 12*30 polis
+        assert.equal((await this.agora.pendingFunds()).toString(), web3.utils.toWei('360'));
     });
 
     it('should send funds to addresses', async () => {
@@ -46,10 +46,10 @@ contract('Agora', ([project1, dev, validators]) => {
         await this.plutus.claimToken(this.polis.address, { from: dev });
         this.agora = await Agora.new(this.plutus.address, this.polis.address, { from: dev })
         await this.plutus.setAgora(this.agora.address, { from: dev });
-        await time.advanceBlockTo('119');
-        // 20*10 polis
-        await expectRevert(this.agora.fundAddress(project1, web3.utils.toWei('210'), {from: dev}), "fundAddress: not enough funds for request")
-        await this.agora.fundAddress(project1, web3.utils.toWei('210'), {from: dev});
-        assert.equal((await this.polis.balanceOf(project1)).toString(), web3.utils.toWei('210'));
+        await time.advanceBlockTo('118');
+        // 20*30 polis
+        await expectRevert(this.agora.fundAddress(project1, web3.utils.toWei('600'), {from: dev}), "fundAddress: not enough funds for request")
+        await this.agora.fundAddress(project1, web3.utils.toWei('600'), {from: dev});
+        assert.equal((await this.polis.balanceOf(project1)).toString(), web3.utils.toWei('600'));
     });
 });
