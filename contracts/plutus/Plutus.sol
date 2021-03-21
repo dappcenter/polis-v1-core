@@ -6,10 +6,11 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 import "@openzeppelin/contracts/utils/EnumerableSet.sol";
 import "@openzeppelin/contracts/math/SafeMath.sol";
+import './ContractGuard.sol';
 import "../token/Polis.sol";
 import "../token/Validator.sol";
 
-contract Plutus is Ownable {
+contract Plutus is Ownable, ContractGuard {
     using SafeMath for uint256;
     using SafeERC20 for IERC20;
 
@@ -38,7 +39,7 @@ contract Plutus is Ownable {
     uint256 public nextHalving;
 
     // The Validator Token, used to vote in governance
-    Validator immutable validator;
+    Validator public immutable validator;
 
     // Treasury
     RewardsInfo public treasuryInfo;
@@ -64,6 +65,11 @@ contract Plutus is Ownable {
 
     modifier tokensClaimed() {
         require(polis.owner() == address(this) && validator.owner() == address(this), "Plutus does not own required tokens");
+        _;
+    }
+
+    modifier onlyEOA() {
+        require(msg.sender == tx.origin, "Plutus: must use EOA");
         _;
     }
 
@@ -203,7 +209,7 @@ contract Plutus is Ownable {
     }
 
     // Deposit some reward token to get polis
-    function depositToken(uint256 _rid, uint256 _amount) public tokensClaimed{
+    function depositToken(uint256 _rid, uint256 _amount) public onlyEOA onlyOneBlock tokensClaimed {
         require ( _rid < rewardsInfo.length , "depositToken: invalid reward id");
         require(msg.sender != agora);
 
@@ -234,7 +240,7 @@ contract Plutus is Ownable {
     }
 
     // Withdraw some reward token
-    function withdrawToken(uint256 _rid, uint256 _amount) public tokensClaimed{
+    function withdrawToken(uint256 _rid, uint256 _amount) public onlyEOA onlyOneBlock tokensClaimed{
         if (_rid == DRACHMA_INDEX) {
             // Drachma must be divisible by 100
             require(_amount.mod(DRACHMA_AMOUNT) == 0, "withdrawToken: incorrect DRACHMA amount");

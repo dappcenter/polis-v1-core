@@ -11,8 +11,8 @@ contract Agora is Ownable {
     using SafeMath for uint256;
     using SafeERC20 for IERC20;
 
-    Plutus immutable plutus;
-    IERC20 immutable polis;
+    Plutus public immutable plutus;
+    IERC20 public immutable polis;
 
     event TreasurySent(address recipient, uint256 amount);
 
