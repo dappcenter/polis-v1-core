@@ -68,11 +68,6 @@ contract Plutus is Ownable, ContractGuard {
         _;
     }
 
-    modifier onlyEOA() {
-        require(msg.sender == tx.origin, "Plutus: must use EOA");
-        _;
-    }
-
     event DepositToken(address indexed user, uint256 indexed rid, uint256 amount);
     event WithdrawToken(address indexed user, uint256 indexed rid, uint256 amount);
     event ClaimTreasury(address treasury, uint256 amount);
@@ -209,7 +204,7 @@ contract Plutus is Ownable, ContractGuard {
     }
 
     // Deposit some reward token to get polis
-    function depositToken(uint256 _rid, uint256 _amount) public onlyEOA onlyOneBlock tokensClaimed {
+    function depositToken(uint256 _rid, uint256 _amount) public onlyOneBlock tokensClaimed {
         require ( _rid < rewardsInfo.length , "depositToken: invalid reward id");
         require(msg.sender != agora);
 
@@ -240,7 +235,7 @@ contract Plutus is Ownable, ContractGuard {
     }
 
     // Withdraw some reward token
-    function withdrawToken(uint256 _rid, uint256 _amount) public onlyEOA onlyOneBlock tokensClaimed{
+    function withdrawToken(uint256 _rid, uint256 _amount) public onlyOneBlock tokensClaimed{
         if (_rid == DRACHMA_INDEX) {
             // Drachma must be divisible by 100
             require(_amount.mod(DRACHMA_AMOUNT) == 0, "withdrawToken: incorrect DRACHMA amount");

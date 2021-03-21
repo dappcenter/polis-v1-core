@@ -2,18 +2,31 @@
 
 pragma solidity ^0.7.0;
 
-// Assumes onlyEOA modifier previously
+// Only allows one call from user/contract to a set of functions in the same block
 contract ContractGuard {
     mapping(uint256 => mapping(address => bool)) private _status;
 
+    function checkSameOriginReentranted() internal view returns (bool) {
+        return _status[block.number][tx.origin];
+    }
+
+    function checkSameSenderReentranted() internal view returns (bool) {
+        return _status[block.number][msg.sender];
+    }
+
     modifier onlyOneBlock() {
         require(
-            !_status[block.number][msg.sender],
+            !checkSameOriginReentranted(),
+            'ContractGuard: one block, one function'
+        );
+        require(
+            !checkSameSenderReentranted(),
             'ContractGuard: one block, one function'
         );
 
         _;
 
+        _status[block.number][tx.origin] = true;
         _status[block.number][msg.sender] = true;
     }
 }
