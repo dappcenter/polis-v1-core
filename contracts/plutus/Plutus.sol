@@ -264,7 +264,6 @@ contract Plutus is Ownable, ContractGuard {
     // Claim the reward for Agora
     function claimTreasury() external {
         updateReward(0, true);
-        address treasury;
         uint256 pending = treasuryInfo.accPolisPerShare.div(1e12).sub(treasuryDebt);
         treasuryDebt = treasuryInfo.accPolisPerShare.div(1e12);
         safePolisTransfer(agora, pending);
