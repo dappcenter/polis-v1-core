@@ -16,8 +16,8 @@ contract Validator is Ownable {
 
     uint256 private _totalSupply;
 
-    string private constant _name = "Validator Vote";
-    string private constant _symbol = "VALIDATOR";
+    string private constant _name = "Staked Polis";
+    string private constant _symbol = "DRACHMA";
     uint8 private constant _decimals = 18;
 
     // ** Governance variables ** //

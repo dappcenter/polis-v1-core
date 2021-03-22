@@ -82,18 +82,18 @@ contract Plutus is Ownable, ContractGuard {
         // Initialize Drachma and treasury data
         uint256 lastRewardBlock = block.number > startBlock ? block.number : startBlock;
         // Agora with 30 alloc points
-        treasuryInfo = RewardsInfo(IERC20(polis), 30, lastRewardBlock, 0);
-        totalAllocPoint = totalAllocPoint.add(30);
+        treasuryInfo = RewardsInfo(IERC20(polis), 35, lastRewardBlock, 0);
+        totalAllocPoint = totalAllocPoint.add(35);
         // Initial drachma rewards. This one guarantees that polis staking rewards match DRACHMA_INDEX
-        totalAllocPoint = totalAllocPoint.add(70);
+        totalAllocPoint = totalAllocPoint.add(25);
         rewardsInfo.push(
             RewardsInfo({
         token: IERC20(polis),
-        allocPoint: 70,
+        allocPoint: 25,
         lastRewardBlock: lastRewardBlock,
         accPolisPerShare: 0
         }));
-        assert(totalAllocPoint == 100);
+        assert(totalAllocPoint == 60);
         nextHalving = block.timestamp.add(365 days);
     }
 
