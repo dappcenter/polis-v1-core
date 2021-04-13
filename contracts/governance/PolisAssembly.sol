@@ -19,17 +19,17 @@ pragma experimental ABIEncoderV2;
 import "@openzeppelin/contracts/math/SafeMath.sol";
 import "../token/Validator.sol";
 
-contract GovernorOmega {
+contract PolisAssembly {
     using SafeMath for uint256;
 
     /// @notice The name of this contract
-    string public constant name = "POLIS Governor Omega";
+    string public constant name = "POLIS Governance Assembly";
 
     /// @notice The number of votes in support of a proposal required in order for a quorum to be reached and for a vote to succeed
-    function quorumVotes() public view returns (uint) { return validator.totalSupply().div(25); } // 4% of Supply
+    function quorumVotes() public view returns (uint) { return validator.totalSupply().div(uint256(100)).mul(uint256(35)); } // 35% of Supply
 
     /// @notice The number of votes required in order for a voter to become a proposer
-    function proposalThreshold() public view returns (uint) { return 100 * 1 ether; } // 100 validators = 1 DRACHMA
+    function proposalThreshold() public view returns (uint) { return validator.totalSupply().div(uint256(1000)).mul(uint256(15)); } // 1.5% of Supply
 
     /// @notice The maximum number of actions that can be included in a proposal
     function proposalMaxOperations() public pure returns (uint) { return 10; } // 10 actions
@@ -37,8 +37,8 @@ contract GovernorOmega {
     /// @notice The delay before voting on a proposal may take place, once proposed
     function votingDelay() public pure returns (uint) { return 1; } // 1 block
 
-    /// @notice The duration of voting on a proposal, in blocks 17280
-    function votingPeriod() public pure returns (uint) { return 100; } // ~3 days in blocks (assuming 15s blocks)
+    /// @notice The duration of voting on a proposal, in blocks 100800
+    function votingPeriod() public pure returns (uint) { return 100800; } // ~3.5 days in blocks (assuming 28800 blocks per day)
 
     /// @notice The address of the Polis Protocol Timelock
     TimelockInterface public timelock;
@@ -154,16 +154,16 @@ contract GovernorOmega {
     }
 
     function propose(address[] memory targets, uint[] memory values, string[] memory signatures, bytes[] memory calldatas, string memory description) public returns (uint256) {
-        require(validator.getPriorVotes(msg.sender, sub256(block.number, 1)) >= proposalThreshold(), "GovernorOmega::propose: proposer votes below proposal threshold");
-        require(targets.length == values.length && targets.length == signatures.length && targets.length == calldatas.length, "GovernorOmega::propose: proposal function information arity mismatch");
-        require(targets.length != 0, "GovernorOmega::propose: must provide actions");
-        require(targets.length <= proposalMaxOperations(), "GovernorOmega::propose: too many actions");
+        require(validator.getPriorVotes(msg.sender, sub256(block.number, 1)) >= proposalThreshold(), "PolisAssembly::propose: proposer votes below proposal threshold");
+        require(targets.length == values.length && targets.length == signatures.length && targets.length == calldatas.length, "PolisAssembly::propose: proposal function information arity mismatch");
+        require(targets.length != 0, "PolisAssembly::propose: must provide actions");
+        require(targets.length <= proposalMaxOperations(), "PolisAssembly::propose: too many actions");
 
         uint256 latestProposalId = latestProposalIds[msg.sender];
         if (latestProposalId != 0) {
             ProposalState proposersLatestProposalState = state(latestProposalId);
-            require(proposersLatestProposalState != ProposalState.Active, "GovernorOmega::propose: one live proposal per proposer, found an already active proposal");
-            require(proposersLatestProposalState != ProposalState.Pending, "GovernorOmega::propose: one live proposal per proposer, found an already pending proposal");
+            require(proposersLatestProposalState != ProposalState.Active, "PolisAssembly::propose: one live proposal per proposer, found an already active proposal");
+            require(proposersLatestProposalState != ProposalState.Pending, "PolisAssembly::propose: one live proposal per proposer, found an already pending proposal");
         }
 
         uint256 startBlock = add256(block.number, votingDelay());
@@ -195,7 +195,7 @@ contract GovernorOmega {
     }
 
     function queue(uint256 proposalId) public {
-        require(state(proposalId) == ProposalState.Succeeded, "GovernorOmega::queue: proposal can only be queued if it is succeeded");
+        require(state(proposalId) == ProposalState.Succeeded, "PolisAssembly::queue: proposal can only be queued if it is succeeded");
         Proposal storage proposal = proposals[proposalId];
         uint256 eta = add256(block.timestamp, timelock.delay());
         for (uint256 i = 0; i < proposal.targets.length; i++) {
@@ -206,12 +206,12 @@ contract GovernorOmega {
     }
 
     function _queueOrRevert(address target, uint value, string memory signature, bytes memory data, uint256 eta) internal {
-        require(!timelock.queuedTransactions(keccak256(abi.encode(target, value, signature, data, eta))), "GovernorOmega::_queueOrRevert: proposal action already queued at eta");
+        require(!timelock.queuedTransactions(keccak256(abi.encode(target, value, signature, data, eta))), "PolisAssembly::_queueOrRevert: proposal action already queued at eta");
         timelock.queueTransaction(target, value, signature, data, eta);
     }
 
     function execute(uint256 proposalId) public payable {
-        require(state(proposalId) == ProposalState.Queued, "GovernorOmega::execute: proposal can only be executed if it is queued");
+        require(state(proposalId) == ProposalState.Queued, "PolisAssembly::execute: proposal can only be executed if it is queued");
         Proposal storage proposal = proposals[proposalId];
         proposal.executed = true;
         for (uint256 i = 0; i < proposal.targets.length; i++) {
@@ -222,10 +222,10 @@ contract GovernorOmega {
 
     function cancel(uint256 proposalId) public {
         ProposalState propState = state(proposalId);
-        require(propState != ProposalState.Executed, "GovernorOmega::cancel: cannot cancel executed proposal");
+        require(propState != ProposalState.Executed, "PolisAssembly::cancel: cannot cancel executed proposal");
 
         Proposal storage proposal = proposals[proposalId];
-        require(msg.sender == guardian || validator.getPriorVotes(proposal.proposer, sub256(block.number, 1)) < proposalThreshold(), "GovernorOmega::cancel: proposer above threshold");
+        require(msg.sender == guardian || validator.getPriorVotes(proposal.proposer, sub256(block.number, 1)) < proposalThreshold(), "PolisAssembly::cancel: proposer above threshold");
 
         proposal.canceled = true;
         for (uint256 i = 0; i < proposal.targets.length; i++) {
@@ -245,7 +245,7 @@ contract GovernorOmega {
     }
 
     function state(uint256 proposalId) public view returns (ProposalState) {
-        require(proposalCount >= proposalId && proposalId > 0, "GovernorOmega::state: invalid proposal id");
+        require(proposalCount >= proposalId && proposalId > 0, "PolisAssembly::state: invalid proposal id");
         Proposal storage proposal = proposals[proposalId];
         if (proposal.canceled) {
             return ProposalState.Canceled;
@@ -275,15 +275,15 @@ contract GovernorOmega {
         bytes32 structHash = keccak256(abi.encode(BALLOT_TYPEHASH, proposalId, support));
         bytes32 digest = keccak256(abi.encodePacked("\x19\x01", domainSeparator, structHash));
         address signatory = ecrecover(digest, v, r, s);
-        require(signatory != address(0), "GovernorOmega::castVoteBySig: invalid signature");
+        require(signatory != address(0), "PolisAssembly::castVoteBySig: invalid signature");
         return _castVote(signatory, proposalId, support);
     }
 
     function _castVote(address voter, uint256 proposalId, bool support) internal {
-        require(state(proposalId) == ProposalState.Active, "GovernorOmega::_castVote: voting is closed");
+        require(state(proposalId) == ProposalState.Active, "PolisAssembly::_castVote: voting is closed");
         Proposal storage proposal = proposals[proposalId];
         Receipt storage receipt = proposal.receipts[voter];
-        require(receipt.hasVoted == false, "GovernorOmega::_castVote: voter already voted");
+        require(receipt.hasVoted == false, "PolisAssembly::_castVote: voter already voted");
         uint256 votes = validator.getPriorVotes(voter, proposal.startBlock);
 
         if (support) {
@@ -300,22 +300,27 @@ contract GovernorOmega {
     }
 
     function __acceptAdmin() public {
-        require(msg.sender == guardian, "GovernorOmega::__acceptAdmin: sender must be gov guardian");
+        require(msg.sender == guardian, "PolisAssembly::__acceptAdmin: sender must be gov guardian");
         timelock.acceptAdmin();
     }
 
     function __abdicate() public {
-        require(msg.sender == guardian, "GovernorOmega::__abdicate: sender must be gov guardian");
+        require(msg.sender == guardian, "PolisAssembly::__abdicate: sender must be gov guardian");
         guardian = address(0);
     }
 
+    function __changeGuardian(address _guardian) public {
+        require(msg.sender == guardian, "PolisAssembly::__changeGuardian: sender must be gov guardian");
+        guardian = _guardian;
+    }
+
     function __queueSetTimelockPendingAdmin(address newPendingAdmin, uint256 eta) public {
-        require(msg.sender == guardian, "GovernorOmega::__queueSetTimelockPendingAdmin: sender must be gov guardian");
+        require(msg.sender == guardian, "PolisAssembly::__queueSetTimelockPendingAdmin: sender must be gov guardian");
         timelock.queueTransaction(address(timelock), 0, "setPendingAdmin(address)", abi.encode(newPendingAdmin), eta);
     }
 
     function __executeSetTimelockPendingAdmin(address newPendingAdmin, uint256 eta) public {
-        require(msg.sender == guardian, "GovernorOmega::__executeSetTimelockPendingAdmin: sender must be gov guardian");
+        require(msg.sender == guardian, "PolisAssembly::__executeSetTimelockPendingAdmin: sender must be gov guardian");
         timelock.executeTransaction(address(timelock), 0, "setPendingAdmin(address)", abi.encode(newPendingAdmin), eta);
     }
 
@@ -346,3 +351,4 @@ interface TimelockInterface {
     function cancelTransaction(address target, uint256 value, string calldata signature, bytes calldata data, uint256 eta) external;
     function executeTransaction(address target, uint256 value, string calldata signature, bytes calldata data, uint256 eta) external payable returns (bytes memory);
 }
+

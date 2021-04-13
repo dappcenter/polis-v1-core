@@ -40,7 +40,7 @@ contract Timelock {
     uint256 public constant GRACE_PERIOD = 14 days;
 
     /// @notice the minimum length of the timelock delay
-    uint256 public constant MINIMUM_DELAY = 1 hours;
+    uint256 public constant MINIMUM_DELAY = 1 days;
 
     /// @notice the maximum length of the timelock delay
     uint256 public constant MAXIMUM_DELAY = 30 days;
